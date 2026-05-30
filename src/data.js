@@ -16,11 +16,9 @@ export const defaultCategories = [
 ]
 
 export const defaultAccounts = [
-  { id: 'sbi', name: 'SBI', color: '#8b5cf6' },
-  { id: 'slice', name: 'Slice', color: '#6366f1' },
-  { id: 'slice-credit', name: 'Slice Credit', color: '#22c55e' },
+  { id: 'bank', name: 'Bank Account', color: '#8b5cf6' },
   { id: 'cash', name: 'Cash', color: '#10b981' },
-  { id: 'hdfc', name: 'HDFC', color: '#ef4444' },
+  { id: 'wallet', name: 'Wallet', color: '#3b82f6' },
 ]
 
 export const INVESTMENT_TYPES = [
@@ -39,18 +37,11 @@ const y = now.getFullYear()
 const m = String(now.getMonth() + 1).padStart(2, '0')
 const d = (day) => `${y}-${m}-${String(day).padStart(2, '0')}`
 
+// Generic demo data — no real personal information
 export const sampleTransactions = [
-  { id: 't1', type: 'income', name: 'Monthly Salary', amount: 65000, categoryId: 'salary', accountId: 'sbi', date: d(1), notes: '' },
-  { id: 't2', type: 'expense', name: 'Box Cricket', amount: 498, categoryId: 'entertainment', accountId: 'sbi', date: d(8), notes: '' },
-  { id: 't3', type: 'expense', name: 'Eye Drops', amount: 118, categoryId: 'personal', accountId: 'sbi', date: d(9), notes: '' },
-  { id: 't4', type: 'expense', name: 'KFC', amount: 423, categoryId: 'food', accountId: 'sbi', date: d(10), notes: '' },
-  { id: 't5', type: 'expense', name: 'Petrol', amount: 300, categoryId: 'transport', accountId: 'sbi', date: d(12), notes: '' },
-  { id: 't6', type: 'expense', name: 'D2 Lunch', amount: 240, categoryId: 'food', accountId: 'slice', date: d(13), notes: '' },
-  { id: 't7', type: 'expense', name: 'Polar Bear', amount: 648, categoryId: 'food', accountId: 'sbi', date: d(13), notes: '' },
-  { id: 't8', type: 'expense', name: 'Hema Dress', amount: 1600, categoryId: 'gifts', accountId: 'sbi', date: d(16), notes: '' },
-  { id: 't9', type: 'expense', name: 'Spotify', amount: 179, categoryId: 'subscription', accountId: 'sbi', date: d(18), notes: '' },
-  { id: 't10', type: 'expense', name: 'Netflix', amount: 199, categoryId: 'subscription', accountId: 'sbi', date: d(19), notes: '' },
-  { id: 't11', type: 'expense', name: 'Fasttag Annual Pass', amount: 3000, categoryId: 'subscription', accountId: 'sbi', date: d(19), notes: '' },
-  { id: 't12', type: 'expense', name: 'Car Wash', amount: 600, categoryId: 'others', accountId: 'sbi', date: d(20), notes: '' },
-  { id: 't13', type: 'expense', name: 'Fillers', amount: 375, categoryId: 'fillers', accountId: 'sbi', date: d(21), notes: '' },
+  { id: 'demo-t1', type: 'income', name: 'Sample Salary', amount: 50000, categoryId: 'salary', accountId: 'bank', date: d(1), notes: 'Demo data' },
+  { id: 'demo-t2', type: 'expense', name: 'Sample Groceries', amount: 1200, categoryId: 'food', accountId: 'bank', date: d(5), notes: 'Demo data' },
+  { id: 'demo-t3', type: 'expense', name: 'Sample Transport', amount: 500, categoryId: 'transport', accountId: 'cash', date: d(8), notes: 'Demo data' },
+  { id: 'demo-t4', type: 'expense', name: 'Sample Subscription', amount: 199, categoryId: 'subscription', accountId: 'bank', date: d(10), notes: 'Demo data' },
+  { id: 'demo-t5', type: 'expense', name: 'Sample Dining', amount: 800, categoryId: 'food', accountId: 'wallet', date: d(14), notes: 'Demo data' },
 ]

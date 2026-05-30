@@ -1,7 +1,10 @@
 const BASE = '/api'
 const TOKEN_KEY = 'it_token'
 
+// null = unchecked, true = up, false = down (retried after RETRY_MS)
 let serverAvailable = null
+let lastFailTime = 0
+const RETRY_MS = 15000 // retry server check after 15s if it failed
 
 function getToken() {
   return localStorage.getItem(TOKEN_KEY)
@@ -18,12 +21,18 @@ function authHeaders() {
 }
 
 async function checkServer() {
-  if (serverAvailable !== null) return serverAvailable
+  // Return cached true immediately
+  if (serverAvailable === true) return true
+  // If recently failed, don't retry yet
+  if (serverAvailable === false && Date.now() - lastFailTime < RETRY_MS) return false
   try {
-    const res = await fetch(`${BASE}/health`, { signal: AbortSignal.timeout(2000) })
+    // 10s timeout — covers Vercel cold starts (typically 3–8s)
+    const res = await fetch(`${BASE}/health`, { signal: AbortSignal.timeout(10000) })
     serverAvailable = res.ok
+    if (!res.ok) lastFailTime = Date.now()
   } catch {
     serverAvailable = false
+    lastFailTime = Date.now()
   }
   return serverAvailable
 }

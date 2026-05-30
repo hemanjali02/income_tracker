@@ -14,9 +14,14 @@ export function AuthProvider({ children }) {
     async function init() {
       const isServer = await api.isServerMode()
       setServerMode(isServer)
-      if (isServer && api.hasToken()) {
-        const me = await api.me()
-        setUser(me)
+      if (isServer) {
+        // Wipe any local data so it can't leak when server is reachable
+        const keys = ['it_transactions', 'it_categories', 'it_accounts', 'it_budgets', 'it_investments']
+        keys.forEach(k => localStorage.removeItem(k))
+        if (api.hasToken()) {
+          const me = await api.me()
+          setUser(me)
+        }
       }
       setReady(true)
     }
