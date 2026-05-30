@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(cd \"D:\\\\Income_Tracker\"; Start-Process -NoNewWindow -FilePath \"npm\" -ArgumentList \"run\",\"dev\" -RedirectStandardOutput \"$env:TEMP\\\\vite-out.txt\" -RedirectStandardError \"$env:TEMP\\\\vite-err.txt\"; Start-Sleep 5; Get-Content \"$env:TEMP\\\\vite-out.txt\" -ErrorAction SilentlyContinue; Get-Content \"$env:TEMP\\\\vite-err.txt\" -ErrorAction SilentlyContinue)",
+      "Bash(npx vite *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173)",
+      "Bash(taskkill /F /IM node.exe)",
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "Bash(npm install *)",
+      "mcp__Claude_Preview__preview_start"
+    ]
+  }
+}
