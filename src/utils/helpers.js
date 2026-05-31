@@ -7,6 +7,16 @@ export function formatCurrency(amount) {
   }).format(amount)
 }
 
+// Short form for chart axes and compact displays — Indian scale
+export function formatCompact(amount) {
+  const abs = Math.abs(amount)
+  const sign = amount < 0 ? '−' : ''
+  if (abs >= 1_00_00_000) return `${sign}₹${(abs / 1_00_00_000).toFixed(1).replace(/\.0$/, '')}Cr`
+  if (abs >= 1_00_000)    return `${sign}₹${(abs / 1_00_000).toFixed(1).replace(/\.0$/, '')}L`
+  if (abs >= 1_000)       return `${sign}₹${(abs / 1_000).toFixed(0)}K`
+  return `${sign}₹${abs}`
+}
+
 export function formatDate(dateStr) {
   const [y, m, d] = dateStr.split('-').map(Number)
   const date = new Date(y, m - 1, d)

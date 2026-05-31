@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
-import { Plus, Pencil, Trash2, X, Check, CreditCard, ArrowLeftRight, ChevronLeft, ArrowUpRight, ArrowDownRight } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, Check, CreditCard, ArrowLeftRight, ChevronLeft, ArrowUpRight, ArrowDownRight, Activity } from 'lucide-react'
 import { useApp } from '../context/AppContext'
-import { generateId, formatCurrency, formatDate, getAccountBalance } from '../utils/helpers'
+import { generateId, formatCurrency, formatDate, formatCompact, getAccountBalance } from '../utils/helpers'
 import ConfirmDialog from './ConfirmDialog'
 import AddTransactionModal from './AddTransactionModal'
 
@@ -206,10 +206,19 @@ export default function AccountManager({ onTransfer }) {
     const txs = transactions.filter(t => t.accountId === accountId)
     const income = txs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
     const expense = txs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
-    const transfersIn = txs.filter(t => t.type === 'transfer' && t.transferDirection === 'in').reduce((s, t) => s + t.amount, 0)
+    const transfersIn  = txs.filter(t => t.type === 'transfer' && t.transferDirection === 'in').reduce((s, t) => s + t.amount, 0)
     const transfersOut = txs.filter(t => t.type === 'transfer' && t.transferDirection === 'out').reduce((s, t) => s + t.amount, 0)
-    const nonTransferCount = txs.filter(t => t.type !== 'transfer').length
-    return { count: nonTransferCount, income, expense, net: income - expense, transfersIn, transfersOut }
+    const nonTransferTxs = txs.filter(t => t.type !== 'transfer')
+    const lastTx = txs.sort((a, b) => b.date.localeCompare(a.date))[0]
+    // Activity this month
+    const thisMonth = new Date().toISOString().slice(0, 7)
+    const monthlyExpense = txs.filter(t => t.type === 'expense' && t.date.startsWith(thisMonth)).reduce((s, t) => s + t.amount, 0)
+    return {
+      count: nonTransferTxs.length, income, expense,
+      transfersIn, transfersOut,
+      lastDate: lastTx?.date || null,
+      monthlyExpense,
+    }
   }
 
   function handleAdd(data) {
@@ -346,15 +355,17 @@ export default function AccountManager({ onTransfer }) {
                     )}
                   </div>
 
-                  <div className="mt-4 h-1 rounded-full" style={{ backgroundColor: acc.color + '40' }}>
-                    {stats.income > 0 && (
-                      <div className="h-full rounded-full transition-all"
-                        style={{ width: `${Math.min(100, (stats.expense / stats.income) * 100)}%`, backgroundColor: acc.color }} />
-                    )}
-                  </div>
-                  <div className="flex justify-between text-xs text-gray-600 mt-1">
-                    <span>Spent</span>
-                    <span>{stats.income > 0 ? `${Math.round((stats.expense / stats.income) * 100)}% of income` : '—'}</span>
+                  <div className="mt-4 pt-3 border-t border-line-subtle flex items-center justify-between text-xs text-gray-500">
+                    <span className="flex items-center gap-1.5">
+                      <Activity size={11} style={{ color: acc.color }} />
+                      {stats.count} transaction{stats.count !== 1 ? 's' : ''}
+                    </span>
+                    <span>
+                      {stats.lastDate
+                        ? <span>Last: <span className="text-gray-400">{formatDate(stats.lastDate)}</span></span>
+                        : <span className="text-gray-600">No activity</span>
+                      }
+                    </span>
                   </div>
                 </div>
               )}

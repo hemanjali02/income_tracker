@@ -13,9 +13,20 @@ const PRESET_COLORS = [
 const inputCls = `w-full bg-bg-elevated border border-line-subtle rounded-lg px-3 py-2 text-sm text-white
   placeholder-gray-500 focus:outline-none focus:border-violet-500 transition-colors`
 
+function CategoryInitial({ name, color }) {
+  const letters = name.trim().split(/\s+/).slice(0, 2).map(w => w[0]?.toUpperCase() || '').join('')
+  return (
+    <span
+      className="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+      style={{ backgroundColor: color + '25', border: `1px solid ${color}40`, color }}
+    >
+      {letters || '?'}
+    </span>
+  )
+}
+
 function CategoryForm({ initial, onSave, onCancel }) {
   const [name, setName] = useState(initial?.name || '')
-  const [icon, setIcon] = useState(initial?.icon || '📦')
   const [color, setColor] = useState(initial?.color || '#8b5cf6')
   const [type, setType] = useState(initial?.type || 'expense')
   const [error, setError] = useState('')
@@ -23,19 +34,16 @@ function CategoryForm({ initial, onSave, onCancel }) {
   function submit(e) {
     e.preventDefault()
     if (!name.trim()) return setError('Name is required')
-    onSave({ name: name.trim(), icon, color, type })
+    onSave({ name: name.trim(), color, type })
   }
 
   return (
     <form onSubmit={submit} className="p-4 bg-bg-elevated rounded-xl border border-line-subtle space-y-3 animate-in">
-      <div className="grid grid-cols-2 gap-3">
-        <div>
+      <div className="flex items-center gap-3">
+        <CategoryInitial name={name || '?'} color={color} />
+        <div className="flex-1">
           <label className="block text-xs text-gray-400 mb-1">Name</label>
           <input autoFocus className={inputCls} value={name} onChange={e => setName(e.target.value)} placeholder="Category name" />
-        </div>
-        <div>
-          <label className="block text-xs text-gray-400 mb-1">Icon (emoji)</label>
-          <input className={inputCls} value={icon} onChange={e => setIcon(e.target.value)} placeholder="🎯" />
         </div>
       </div>
       <div>
@@ -83,10 +91,10 @@ export default function CategoryManager() {
   const [confirmDelete, setConfirmDelete] = useState(null)
 
   const expenses = categories.filter(c => c.type === 'expense')
-  const incomes = categories.filter(c => c.type === 'income')
+  const incomes  = categories.filter(c => c.type === 'income')
 
   function handleAdd(data) {
-    addCategory({ id: generateId(), ...data })
+    addCategory({ id: generateId(), icon: '', ...data })
     setAdding(false)
   }
 
@@ -112,12 +120,7 @@ export default function CategoryManager() {
               ) : (
                 <div className="flex items-center justify-between px-4 py-3 bg-bg-card rounded-xl border border-line-subtle group">
                   <div className="flex items-center gap-3">
-                    <span
-                      className="w-9 h-9 rounded-xl flex items-center justify-center text-lg"
-                      style={{ backgroundColor: cat.color + '15', border: `1px solid ${cat.color}20` }}
-                    >
-                      {cat.icon}
-                    </span>
+                    <CategoryInitial name={cat.name} color={cat.color} />
                     <div>
                       <div className="text-sm font-medium text-white">{cat.name}</div>
                       <div className="text-xs text-gray-500 capitalize">{cat.type}</div>
@@ -148,7 +151,9 @@ export default function CategoryManager() {
   return (
     <div className="space-y-6 animate-in">
       {confirmDelete && (
-        <ConfirmDialog title="Delete Category" message="This will not delete associated transactions, but they will show no category." onConfirm={confirmDel} onCancel={() => setConfirmDelete(null)} />
+        <ConfirmDialog title="Delete Category"
+          message="This will not delete associated transactions, but they will show no category."
+          onConfirm={confirmDel} onCancel={() => setConfirmDelete(null)} />
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-3">

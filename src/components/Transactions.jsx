@@ -298,10 +298,10 @@ export default function Transactions({ onAdd }) {
       {/* Summary strip */}
       <div className="flex flex-wrap gap-3 sm:gap-4 text-sm">
         <span className="text-gray-400">{filtered.length} transactions</span>
-        <span className="text-emerald-400 font-medium">+₹{totalIncome.toLocaleString('en-IN')}</span>
-        <span className="text-rose-400 font-medium">-₹{totalExpense.toLocaleString('en-IN')}</span>
+        <span className="text-emerald-400 font-medium">+{formatCurrency(totalIncome)}</span>
+        <span className="text-rose-400 font-medium">−{formatCurrency(totalExpense)}</span>
         <span className={`font-semibold ${totalIncome - totalExpense >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
-          Net: ₹{(totalIncome - totalExpense).toLocaleString('en-IN')}
+          Net: {totalIncome - totalExpense >= 0 ? '+' : '−'}{formatCurrency(Math.abs(totalIncome - totalExpense))}
         </span>
       </div>
 

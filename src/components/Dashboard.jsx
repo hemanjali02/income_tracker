@@ -6,7 +6,7 @@ import {
 import { TrendingUp, TrendingDown, Wallet, Landmark, ArrowUpRight, ArrowDownRight, ChevronLeft, ChevronRight, Pencil, Trash2, ArrowLeftRight } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import {
-  formatCurrency, formatDate, getCurrentMonthKey, getMonthlyTotals,
+  formatCurrency, formatCompact, formatDate, getCurrentMonthKey, getMonthlyTotals,
   getCategoryTotals, getDailyTotals, getMonthLabel, getAccountBalance
 } from '../utils/helpers'
 import TransactionRow from './TransactionRow'
@@ -246,7 +246,7 @@ export default function Dashboard() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#1c1c2e" vertical={false} />
                 <XAxis dataKey="month" tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={false} tickLine={false}
-                  tickFormatter={v => v >= 1000 ? `₹${(v / 1000).toFixed(0)}k` : `₹${v}`} />
+                  tickFormatter={v => formatCompact(v)} />
                 <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
                 <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, color: '#9ca3af' }} />
                 <Bar dataKey="income" name="Income" fill="#10b981" radius={[4, 4, 0, 0]} />
@@ -313,7 +313,7 @@ export default function Dashboard() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#1c1c2e" vertical={false} />
                 <XAxis dataKey="day" tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={false} tickLine={false}
-                  tickFormatter={v => v >= 1000 ? `₹${(v / 1000).toFixed(0)}k` : `₹${v}`} width={45} />
+                  tickFormatter={v => formatCompact(v)} width={45} />
                 <Tooltip content={<ChartTooltip />} />
                 <Area type="monotone" dataKey="expense" name="Expense" stroke="#f97316" strokeWidth={2} fill="url(#expGrad)" />
                 <Area type="monotone" dataKey="income" name="Income" stroke="#10b981" strokeWidth={2} fill="url(#incGrad)" />
