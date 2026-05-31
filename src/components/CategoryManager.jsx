@@ -1,23 +1,16 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Plus, Pencil, Trash2, X, Check } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { generateId } from '../utils/helpers'
+import { inputSmCls, labelCls } from '../utils/styles'
+import ColorPicker from './ColorPicker'
 import ConfirmDialog from './ConfirmDialog'
-
-const PRESET_COLORS = [
-  '#f97316', '#3b82f6', '#8b5cf6', '#10b981', '#f59e0b',
-  '#ec4899', '#fb923c', '#a855f7', '#6b7280', '#ef4444',
-  '#06b6d4', '#84cc16',
-]
-
-const inputCls = `w-full bg-bg-elevated border border-line-subtle rounded-lg px-3 py-2 text-sm text-white
-  placeholder-gray-500 focus:outline-none focus:border-violet-500 transition-colors`
 
 function CategoryInitial({ name, color }) {
   const letters = name.trim().split(/\s+/).slice(0, 2).map(w => w[0]?.toUpperCase() || '').join('')
   return (
     <span
-      className="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+      className="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0"
       style={{ backgroundColor: color + '25', border: `1px solid ${color}40`, color }}
     >
       {letters || '?'}
@@ -42,12 +35,12 @@ function CategoryForm({ initial, onSave, onCancel }) {
       <div className="flex items-center gap-3">
         <CategoryInitial name={name || '?'} color={color} />
         <div className="flex-1">
-          <label className="block text-xs text-gray-400 mb-1">Name</label>
-          <input autoFocus className={inputCls} value={name} onChange={e => setName(e.target.value)} placeholder="Category name" />
+          <label className={labelCls}>Name</label>
+          <input autoFocus className={inputSmCls} value={name} onChange={e => setName(e.target.value)} placeholder="Category name" />
         </div>
       </div>
       <div>
-        <label className="block text-xs text-gray-400 mb-1">Type</label>
+        <label className={labelCls}>Type</label>
         <div className="flex gap-2">
           {['expense', 'income'].map(t => (
             <button key={t} type="button" onClick={() => setType(t)}
@@ -60,18 +53,10 @@ function CategoryForm({ initial, onSave, onCancel }) {
         </div>
       </div>
       <div>
-        <label className="block text-xs text-gray-400 mb-1.5">Color</label>
-        <div className="flex flex-wrap gap-2">
-          {PRESET_COLORS.map(c => (
-            <button key={c} type="button" onClick={() => setColor(c)}
-              className="w-6 h-6 rounded-full transition-transform hover:scale-110 flex items-center justify-center"
-              style={{ backgroundColor: c }}>
-              {color === c && <Check size={10} className="text-white" />}
-            </button>
-          ))}
-        </div>
+        <label className={labelCls}>Color</label>
+        <ColorPicker value={color} onChange={setColor} />
       </div>
-      {error && <p className="text-red-400 text-xs">{error}</p>}
+      {error && <p className="text-rose-400 text-xs">{error}</p>}
       <div className="flex gap-2">
         <button type="submit" className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium rounded-lg transition-colors">
           <Check size={12} /> Save
@@ -85,13 +70,22 @@ function CategoryForm({ initial, onSave, onCancel }) {
 }
 
 export default function CategoryManager() {
-  const { categories, addCategory, updateCategory, deleteCategory } = useApp()
+  const { categories, transactions, addCategory, updateCategory, deleteCategory } = useApp()
   const [adding, setAdding] = useState(false)
   const [editId, setEditId] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(null)
 
   const expenses = categories.filter(c => c.type === 'expense')
   const incomes  = categories.filter(c => c.type === 'income')
+
+  // Count how many transactions use each category
+  const usageMap = useMemo(() =>
+    transactions.reduce((m, t) => {
+      if (t.categoryId) m[t.categoryId] = (m[t.categoryId] || 0) + 1
+      return m
+    }, {}),
+    [transactions]
+  )
 
   function handleAdd(data) {
     addCategory({ id: generateId(), icon: '', ...data })
@@ -103,6 +97,9 @@ export default function CategoryManager() {
     setEditId(null)
   }
 
+  const catToDelete = categories.find(c => c.id === confirmDelete)
+  const deleteUsageCount = confirmDelete ? (usageMap[confirmDelete] || 0) : 0
+
   function confirmDel() {
     if (confirmDelete) deleteCategory(confirmDelete)
     setConfirmDelete(null)
@@ -113,33 +110,40 @@ export default function CategoryManager() {
       <div>
         <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">{label}</h3>
         <div className="space-y-2">
-          {list.map(cat => (
-            <div key={cat.id}>
-              {editId === cat.id ? (
-                <CategoryForm initial={cat} onSave={data => handleEdit(cat.id, data)} onCancel={() => setEditId(null)} />
-              ) : (
-                <div className="flex items-center justify-between px-4 py-3 bg-bg-card rounded-xl border border-line-subtle group">
-                  <div className="flex items-center gap-3">
-                    <CategoryInitial name={cat.name} color={cat.color} />
-                    <div>
-                      <div className="text-sm font-medium text-white">{cat.name}</div>
-                      <div className="text-xs text-gray-500 capitalize">{cat.type}</div>
+          {list.map(cat => {
+            const usage = usageMap[cat.id] || 0
+            return (
+              <div key={cat.id}>
+                {editId === cat.id ? (
+                  <CategoryForm initial={cat} onSave={data => handleEdit(cat.id, data)} onCancel={() => setEditId(null)} />
+                ) : (
+                  <div className="flex items-center justify-between px-4 py-3 bg-bg-card rounded-xl border border-line-subtle group">
+                    <div className="flex items-center gap-3">
+                      <CategoryInitial name={cat.name} color={cat.color} />
+                      <div>
+                        <div className="text-sm font-medium text-white">{cat.name}</div>
+                        <div className="text-xs text-gray-500">
+                          {cat.type === 'expense' ? 'Expense' : 'Income'}
+                          <span className="text-gray-600 ml-1.5">·</span>
+                          <span className="text-gray-600 ml-1.5">{usage} transaction{usage !== 1 ? 's' : ''}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => setEditId(cat.id)}
+                        className="p-1.5 text-gray-500 hover:text-purple-400 hover:bg-purple-500/10 rounded-lg transition-colors">
+                        <Pencil size={13} />
+                      </button>
+                      <button onClick={() => setConfirmDelete(cat.id)}
+                        className="p-1.5 text-gray-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors">
+                        <Trash2 size={13} />
+                      </button>
                     </div>
                   </div>
-                  <div className="flex gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => setEditId(cat.id)}
-                      className="p-1.5 text-gray-500 hover:text-purple-400 hover:bg-purple-500/10 rounded-lg transition-colors">
-                      <Pencil size={13} />
-                    </button>
-                    <button onClick={() => setConfirmDelete(cat.id)}
-                      className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors">
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
+                )}
+              </div>
+            )
+          })}
           {list.length === 0 && (
             <p className="text-gray-600 text-sm py-4 text-center">No {label.toLowerCase()} yet</p>
           )}
@@ -151,9 +155,16 @@ export default function CategoryManager() {
   return (
     <div className="space-y-6 animate-in">
       {confirmDelete && (
-        <ConfirmDialog title="Delete Category"
-          message="This will not delete associated transactions, but they will show no category."
-          onConfirm={confirmDel} onCancel={() => setConfirmDelete(null)} />
+        <ConfirmDialog
+          title="Delete Category"
+          message={
+            deleteUsageCount > 0
+              ? `"${catToDelete?.name}" is used in ${deleteUsageCount} transaction${deleteUsageCount !== 1 ? 's' : ''}. Those transactions will have no category after deletion.`
+              : `Delete "${catToDelete?.name}"? This cannot be undone.`
+          }
+          onConfirm={confirmDel}
+          onCancel={() => setConfirmDelete(null)}
+        />
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-3">

@@ -152,8 +152,8 @@ export default function Investments() {
                         <div className="text-sm font-medium text-white truncate">{inv.name}</div>
                         <div className="text-xs text-gray-500 mt-0.5">
                           {type.name}
-                          {inv.units && ` · ${inv.units} units`}
-                          {inv.purchaseDate && ` · ${formatDateFull(inv.purchaseDate)}`}
+                          {inv.units ? ` · ${inv.units} units` : ''}
+                          {inv.purchaseDate ? ` · ${formatDateFull(inv.purchaseDate)}` : ''}
                         </div>
                       </div>
                       <div className="text-right">

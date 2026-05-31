@@ -169,8 +169,8 @@ export default function Sidebar({ activeView, onNavigate, mobileOpen, onCloseMob
                 onClick={() => handleNav(id)}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 text-sm font-medium transition-all duration-150 ${
                   active
-                    ? 'bg-violet-500/15 text-violet-200 border border-violet-500/30 shadow-sm'
-                    : 'text-gray-400 hover:text-gray-200 hover:bg-white/[0.04] border border-transparent'
+                    ? 'bg-violet-500/10 text-violet-200 border-l-2 border-violet-400 pl-[10px]'
+                    : 'text-gray-400 hover:text-gray-200 hover:bg-white/[0.04] border-l-2 border-transparent'
                 }`}
               >
                 <Icon size={16} className={active ? 'text-violet-300' : ''} />

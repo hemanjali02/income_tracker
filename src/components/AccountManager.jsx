@@ -1,48 +1,66 @@
 import { useState, useMemo } from 'react'
-import { Plus, Pencil, Trash2, X, Check, CreditCard, ArrowLeftRight, ChevronLeft, ArrowUpRight, ArrowDownRight, Activity } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, Check, CreditCard, ArrowLeftRight, ChevronLeft, ArrowUpRight, ArrowDownRight, Activity, Building2, Banknote, Wallet as WalletIcon } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { generateId, formatCurrency, formatDate, formatCompact, getAccountBalance } from '../utils/helpers'
+import { inputSmCls, labelCls } from '../utils/styles'
+import ColorPicker from './ColorPicker'
 import ConfirmDialog from './ConfirmDialog'
 import AddTransactionModal from './AddTransactionModal'
 
-const PRESET_COLORS = [
-  '#7c3aed', '#6366f1', '#3b82f6', '#059669', '#dc2626',
-  '#f59e0b', '#ec4899', '#06b6d4', '#84cc16', '#6b7280',
+export const ACCOUNT_TYPES = [
+  { id: 'bank',   label: 'Bank',        icon: Building2  },
+  { id: 'cash',   label: 'Cash',        icon: Banknote   },
+  { id: 'wallet', label: 'Wallet',      icon: WalletIcon },
+  { id: 'credit', label: 'Credit Card', icon: CreditCard },
 ]
 
-const inputCls = `w-full bg-bg-elevated border border-line-subtle rounded-lg px-3 py-2 text-sm text-white
-  placeholder-gray-500 focus:outline-none focus:border-violet-500 transition-colors`
+export function AccountIcon({ type, color, size = 18 }) {
+  const Icon = ACCOUNT_TYPES.find(t => t.id === type)?.icon || Building2
+  return (
+    <div className="w-10 h-10 rounded-xl flex items-center justify-center"
+      style={{ backgroundColor: color + '15', border: `1px solid ${color}20` }}>
+      <Icon size={size} style={{ color }} />
+    </div>
+  )
+}
 
 function AccountForm({ initial, onSave, onCancel }) {
   const [name, setName] = useState(initial?.name || '')
   const [color, setColor] = useState(initial?.color || '#7c3aed')
+  const [accountType, setAccountType] = useState(initial?.accountType || 'bank')
   const [error, setError] = useState('')
 
   function submit(e) {
     e.preventDefault()
     if (!name.trim()) return setError('Name is required')
-    onSave({ name: name.trim(), color })
+    onSave({ name: name.trim(), color, accountType })
   }
 
   return (
     <form onSubmit={submit} className="p-4 bg-bg-elevated rounded-xl border border-line-subtle space-y-3 animate-in">
       <div>
-        <label className="block text-xs text-gray-400 mb-1">Account Name</label>
-        <input autoFocus className={inputCls} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. SBI, HDFC, Cash" />
+        <label className={labelCls}>Account Name</label>
+        <input autoFocus className={inputSmCls} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. SBI, HDFC, Cash" />
       </div>
       <div>
-        <label className="block text-xs text-gray-400 mb-1.5">Color</label>
-        <div className="flex flex-wrap gap-2">
-          {PRESET_COLORS.map(c => (
-            <button key={c} type="button" onClick={() => setColor(c)}
-              className="w-6 h-6 rounded-full transition-transform hover:scale-110 flex items-center justify-center"
-              style={{ backgroundColor: c }}>
-              {color === c && <Check size={10} className="text-white" />}
+        <label className={labelCls}>Type</label>
+        <div className="grid grid-cols-4 gap-2">
+          {ACCOUNT_TYPES.map(({ id, label, icon: Icon }) => (
+            <button key={id} type="button" onClick={() => setAccountType(id)}
+              className={`flex flex-col items-center gap-1 py-2 rounded-lg border text-xs transition-all ${
+                accountType === id ? 'bg-violet-500/15 border-violet-500/40 text-violet-300' : 'border-line-subtle text-gray-500 hover:border-line hover:text-gray-300'
+              }`}>
+              <Icon size={14} />
+              {label}
             </button>
           ))}
         </div>
       </div>
-      {error && <p className="text-red-400 text-xs">{error}</p>}
+      <div>
+        <label className={labelCls}>Color</label>
+        <ColorPicker value={color} onChange={setColor} />
+      </div>
+      {error && <p className="text-rose-400 text-xs">{error}</p>}
       <div className="flex gap-2">
         <button type="submit" className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium rounded-lg transition-colors">
           <Check size={12} /> Save
@@ -81,9 +99,8 @@ function AccountDetail({ acc, transactions, categories, accounts, onBack, onEdit
           <ChevronLeft size={15} />
         </button>
         <div className="flex items-center gap-3 flex-1 min-w-0">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ backgroundColor: acc.color + '15', border: `1px solid ${acc.color}30` }}>
-            <CreditCard size={18} style={{ color: acc.color }} />
+          <div className="flex-shrink-0">
+            <AccountIcon type={acc.accountType} color={acc.color} />
           </div>
           <div className="min-w-0">
             <h2 className="text-lg font-bold text-white">{acc.name}</h2>
@@ -302,10 +319,7 @@ export default function AccountManager({ onTransfer }) {
                 >
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center"
-                        style={{ backgroundColor: acc.color + '15', border: `1px solid ${acc.color}20` }}>
-                        <CreditCard size={18} style={{ color: acc.color }} />
-                      </div>
+                      <AccountIcon type={acc.accountType} color={acc.color} />
                       <div>
                         <div className="text-sm font-bold text-white">{acc.name}</div>
                         <div className="text-xs text-gray-500">{stats.count} transactions</div>

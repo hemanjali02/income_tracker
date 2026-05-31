@@ -3,9 +3,6 @@ import { ChevronLeft, ChevronRight, Target, AlertTriangle } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { getCurrentMonthKey, getMonthLabel, formatCurrency, generateId } from '../utils/helpers'
 
-const inputCls = `w-full bg-bg-elevated border border-line-subtle rounded-lg px-3 py-2 text-sm text-white
-  placeholder-gray-500 focus:outline-none focus:border-violet-500 transition-colors`
-
 export default function BudgetView() {
   const { transactions, categories, budgets, saveBudget, deleteBudget } = useApp()
   const [month, setMonth] = useState(getCurrentMonthKey())
@@ -86,7 +83,7 @@ export default function BudgetView() {
         <div className="bg-bg-card border border-line-subtle rounded-xl p-5">
           <div className="flex items-center justify-between mb-3">
             <span className="text-sm font-semibold text-white">Overall Budget</span>
-            <span className={`text-sm font-bold ${totalSpent > totalBudget ? 'text-red-400' : 'text-emerald-400'}`}>
+            <span className={`text-sm font-bold ${totalSpent > totalBudget ? 'text-rose-400' : 'text-emerald-400'}`}>
               {formatCurrency(totalSpent)} / {formatCurrency(totalBudget)}
             </span>
           </div>
@@ -95,7 +92,7 @@ export default function BudgetView() {
               className="h-full rounded-full transition-all duration-500"
               style={{
                 width: `${Math.min(100, (totalSpent / totalBudget) * 100)}%`,
-                backgroundColor: totalSpent > totalBudget ? '#ef4444' : totalSpent > totalBudget * 0.8 ? '#f59e0b' : '#10b981',
+                backgroundColor: totalSpent > totalBudget ? '#f43f5e' : totalSpent > totalBudget * 0.8 ? '#f59e0b' : '#10b981',
               }}
             />
           </div>
@@ -120,10 +117,10 @@ export default function BudgetView() {
               <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                 <div className="flex items-center gap-3">
                   <span
-                    className="w-9 h-9 rounded-xl flex items-center justify-center text-base"
-                    style={{ backgroundColor: cat.color + '15', border: `1px solid ${cat.color}20` }}
+                    className="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold"
+                    style={{ backgroundColor: cat.color + '25', border: `1px solid ${cat.color}40`, color: cat.color }}
                   >
-                    {cat.icon}
+                    {cat.name.trim().split(/\s+/).slice(0,2).map(w => w[0]?.toUpperCase()).join('')}
                   </span>
                   <div>
                     <div className="text-sm font-medium text-white">{cat.name}</div>
@@ -135,11 +132,11 @@ export default function BudgetView() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {over && <AlertTriangle size={14} className="text-red-400" />}
+                  {over && <AlertTriangle size={14} className="text-rose-400" />}
                   {editCatId === cat.id ? (
                     <div className="flex items-center gap-2">
                       <input
-                        className="w-24 bg-bg-elevated border border-line-subtle rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-violet-500"
+                        className="w-24 bg-bg-elevated border border-line-subtle rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 transition-colors"
                         type="number"
                         min="0"
                         placeholder="₹ Limit"
@@ -181,12 +178,12 @@ export default function BudgetView() {
                       className="h-full rounded-full transition-all duration-500"
                       style={{
                         width: `${Math.min(100, pct)}%`,
-                        backgroundColor: over ? '#ef4444' : pct > 80 ? '#f59e0b' : cat.color,
+                        backgroundColor: over ? '#f43f5e' : pct > 80 ? '#f59e0b' : cat.color,
                       }}
                     />
                   </div>
                   <div className="flex justify-between text-xs mt-1">
-                    <span className={over ? 'text-red-400 font-medium' : 'text-gray-500'}>
+                    <span className={over ? 'text-rose-400 font-medium' : 'text-gray-500'}>
                       {pct}%{over ? ' — Over budget!' : ''}
                     </span>
                     <span className="text-gray-600">

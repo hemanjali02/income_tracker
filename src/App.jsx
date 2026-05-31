@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ToastProvider } from './context/ToastContext'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { AppProvider } from './context/AppContext'
@@ -42,6 +42,12 @@ function AppShell() {
     setAddDefaultType(defaultType)
     setShowAdd(true)
   }
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' })
+    const labels = { dashboard: 'Dashboard', transactions: 'Transactions', investments: 'Investments', budgets: 'Budgets', categories: 'Categories', accounts: 'Accounts' }
+    document.title = `${labels[view] || view} | Income Tracker`
+  }, [view])
 
   return (
     <div className="min-h-screen flex overflow-hidden">

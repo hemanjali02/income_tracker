@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import { api } from '../api'
 import { defaultCategories, defaultAccounts, sampleTransactions } from '../data'
 import { generateId } from '../utils/helpers'
@@ -8,7 +8,7 @@ import { useAuth } from './AuthContext'
 const AppContext = createContext(null)
 
 export function AppProvider({ children }) {
-  const { addToast } = useToast()
+  const { addToast, removeToast } = useToast()
   const { user, serverMode, ready: authReady } = useAuth()
   const [transactions, setTransactions] = useState([])
   const [categories, setCategories] = useState([])
@@ -16,6 +16,7 @@ export function AppProvider({ children }) {
   const [budgets, setBudgets] = useState([])
   const [investments, setInvestments] = useState([])
   const [loading, setLoading] = useState(true)
+  const undoTimers = useRef({})
 
   useEffect(() => {
     async function load() {
@@ -23,35 +24,22 @@ export function AppProvider({ children }) {
       setLoading(true)
       try {
         if (serverMode && !user) {
-          // Server mode but not logged in - leave empty, login screen will show
-          setTransactions([])
-          setCategories([])
-          setAccounts([])
-          setBudgets([])
-          setInvestments([])
+          setTransactions([]); setCategories([]); setAccounts([])
+          setBudgets([]); setInvestments([])
           return
         }
-
         const [txs, cats, accs, buds, invs] = await Promise.all([
-          api.getTransactions(),
-          api.getCategories(),
-          api.getAccounts(),
-          api.getBudgets(),
-          api.getInvestments(),
+          api.getTransactions(), api.getCategories(), api.getAccounts(),
+          api.getBudgets(), api.getInvestments(),
         ])
-
-        // In local mode, seed defaults if empty
         if (!serverMode) {
           setTransactions(txs.length ? txs : sampleTransactions)
           setCategories(cats.length ? cats : defaultCategories)
           setAccounts(accs.length ? accs : defaultAccounts)
         } else {
-          setTransactions(txs)
-          setCategories(cats)
-          setAccounts(accs)
+          setTransactions(txs); setCategories(cats); setAccounts(accs)
         }
-        setBudgets(buds)
-        setInvestments(invs)
+        setBudgets(buds); setInvestments(invs)
       } finally {
         setLoading(false)
       }
@@ -59,89 +47,96 @@ export function AppProvider({ children }) {
     load()
   }, [authReady, serverMode, user])
 
+  function apiErr() {
+    addToast('Sync failed — data saved locally only', 'error')
+  }
+
   // Transactions
   const addTransaction = useCallback(async (tx) => {
     setTransactions(prev => [tx, ...prev])
-    try { await api.addTransaction(tx) } catch {}
+    try { await api.addTransaction(tx) } catch { apiErr() }
     addToast('Transaction added')
   }, [addToast])
 
   const updateTransaction = useCallback(async (id, updates) => {
     setTransactions(prev => prev.map(t => t.id === id ? { ...updates } : t))
-    try { await api.updateTransaction(id, updates) } catch {}
+    try { await api.updateTransaction(id, updates) } catch { apiErr() }
     addToast('Transaction updated')
   }, [addToast])
 
   const deleteTransaction = useCallback(async (id) => {
-    let idsToDelete = [id]
+    // Optimistically remove from UI, allow undo for 5 seconds
+    let deletedTx = null
+    let deletedTransferPair = null
+
     setTransactions(prev => {
       const tx = prev.find(t => t.id === id)
-      if (tx?.type === 'transfer' && tx.transferId) {
-        idsToDelete = prev.filter(t => t.transferId === tx.transferId).map(t => t.id)
+      if (!tx) return prev
+      if (tx.type === 'transfer' && tx.transferId) {
+        deletedTransferPair = prev.filter(t => t.transferId === tx.transferId)
         return prev.filter(t => t.transferId !== tx.transferId)
       }
+      deletedTx = tx
       return prev.filter(t => t.id !== id)
     })
-    try {
-      if (idsToDelete.length > 1) await api.bulkDeleteTransactions(idsToDelete)
-      else await api.deleteTransaction(id)
-    } catch {}
-    addToast('Transaction deleted', 'info')
+
+    const toastId = addToast(
+      deletedTransferPair ? 'Transfer deleted' : 'Transaction deleted',
+      'info',
+      {
+        duration: 5000,
+        action: {
+          label: 'Undo',
+          onClick: () => {
+            clearTimeout(undoTimers.current[toastId])
+            if (deletedTransferPair) {
+              setTransactions(prev => [...deletedTransferPair, ...prev])
+            } else if (deletedTx) {
+              setTransactions(prev => [deletedTx, ...prev])
+            }
+          },
+        },
+      }
+    )
+
+    undoTimers.current[toastId] = setTimeout(async () => {
+      delete undoTimers.current[toastId]
+      // Commit deletion to API after undo window
+      try {
+        if (deletedTransferPair) {
+          const ids = deletedTransferPair.map(t => t.id)
+          await api.bulkDeleteTransactions(ids)
+        } else if (deletedTx) {
+          await api.deleteTransaction(deletedTx.id)
+        }
+      } catch { apiErr() }
+    }, 5000)
   }, [addToast])
 
   const updateTransfer = useCallback(async (transferId, updates) => {
     let updatedLegs = []
     setTransactions(prev => {
-      const next = prev.map(t =>
-        t.transferId === transferId ? { ...t, ...updates } : t
-      )
+      const next = prev.map(t => t.transferId === transferId ? { ...t, ...updates } : t)
       updatedLegs = next.filter(t => t.transferId === transferId)
       return next
     })
     try {
-      for (const leg of updatedLegs) {
-        await api.updateTransaction(leg.id, leg)
-      }
-    } catch {}
+      for (const leg of updatedLegs) await api.updateTransaction(leg.id, leg)
+    } catch { apiErr() }
     addToast('Transfer updated')
   }, [addToast])
 
   const addTransfer = useCallback(async ({ fromAccountId, toAccountId, amount, name, date, notes }) => {
     const transferId = generateId()
-    const outTx = {
-      id: generateId(),
-      type: 'transfer',
-      transferId,
-      transferDirection: 'out',
-      name,
-      amount,
-      accountId: fromAccountId,
-      toAccountId,
-      date,
-      notes: notes || '',
-      categoryId: '',
-    }
-    const inTx = {
-      id: generateId(),
-      type: 'transfer',
-      transferId,
-      transferDirection: 'in',
-      name,
-      amount,
-      accountId: toAccountId,
-      fromAccountId,
-      date,
-      notes: notes || '',
-      categoryId: '',
-    }
+    const outTx = { id: generateId(), type: 'transfer', transferId, transferDirection: 'out', name, amount, accountId: fromAccountId, toAccountId, date, notes: notes || '', categoryId: '' }
+    const inTx  = { id: generateId(), type: 'transfer', transferId, transferDirection: 'in',  name, amount, accountId: toAccountId, fromAccountId, date, notes: notes || '', categoryId: '' }
     setTransactions(prev => [inTx, outTx, ...prev])
-    try { await api.addTransaction(outTx); await api.addTransaction(inTx) } catch {}
+    try { await api.addTransaction(outTx); await api.addTransaction(inTx) } catch { apiErr() }
     addToast('Transfer recorded')
   }, [addToast])
 
   const bulkDeleteTransactions = useCallback(async (ids) => {
     const inputSet = new Set(ids)
-    // Expand any transfer legs: deleting one leg must delete the paired leg too
     let allIds = ids
     setTransactions(prev => {
       const transferIds = new Set(
@@ -153,41 +148,41 @@ export function AppProvider({ children }) {
       const fullSet = new Set(allIds)
       return prev.filter(t => !fullSet.has(t.id))
     })
-    try { await api.bulkDeleteTransactions(allIds) } catch {}
+    try { await api.bulkDeleteTransactions(allIds) } catch { apiErr() }
     addToast(`Deleted ${ids.length} transaction${ids.length !== 1 ? 's' : ''}`, 'info')
   }, [addToast])
 
   // Categories
   const addCategory = useCallback(async (cat) => {
     setCategories(prev => [...prev, cat])
-    try { await api.addCategory(cat) } catch {}
+    try { await api.addCategory(cat) } catch { apiErr() }
     addToast('Category added')
   }, [addToast])
   const updateCategory = useCallback(async (id, updates) => {
     setCategories(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c))
-    try { await api.updateCategory(id, updates) } catch {}
+    try { await api.updateCategory(id, updates) } catch { apiErr() }
     addToast('Category updated')
   }, [addToast])
   const deleteCategory = useCallback(async (id) => {
     setCategories(prev => prev.filter(c => c.id !== id))
-    try { await api.deleteCategory(id) } catch {}
+    try { await api.deleteCategory(id) } catch { apiErr() }
     addToast('Category deleted', 'info')
   }, [addToast])
 
   // Accounts
   const addAccount = useCallback(async (acc) => {
     setAccounts(prev => [...prev, acc])
-    try { await api.addAccount(acc) } catch {}
+    try { await api.addAccount(acc) } catch { apiErr() }
     addToast('Account added')
   }, [addToast])
   const updateAccount = useCallback(async (id, updates) => {
     setAccounts(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a))
-    try { await api.updateAccount(id, updates) } catch {}
+    try { await api.updateAccount(id, updates) } catch { apiErr() }
     addToast('Account updated')
   }, [addToast])
   const deleteAccount = useCallback(async (id) => {
     setAccounts(prev => prev.filter(a => a.id !== id))
-    try { await api.deleteAccount(id) } catch {}
+    try { await api.deleteAccount(id) } catch { apiErr() }
     addToast('Account deleted', 'info')
   }, [addToast])
 
@@ -195,12 +190,10 @@ export function AppProvider({ children }) {
   const saveBudget = useCallback(async (budget) => {
     setBudgets(prev => {
       const idx = prev.findIndex(b => b.categoryId === budget.categoryId && b.month === budget.month)
-      if (idx !== -1) {
-        const next = [...prev]; next[idx] = { ...next[idx], ...budget }; return next
-      }
+      if (idx !== -1) { const next = [...prev]; next[idx] = { ...next[idx], ...budget }; return next }
       return [...prev, budget]
     })
-    try { await api.saveBudget(budget) } catch {}
+    try { await api.saveBudget(budget) } catch { apiErr() }
     addToast('Budget saved')
   }, [addToast])
   const deleteBudget = useCallback(async (id) => {
@@ -211,17 +204,17 @@ export function AppProvider({ children }) {
   // Investments
   const addInvestment = useCallback(async (inv) => {
     setInvestments(prev => [...prev, inv])
-    try { await api.addInvestment(inv) } catch {}
+    try { await api.addInvestment(inv) } catch { apiErr() }
     addToast('Investment added')
   }, [addToast])
   const updateInvestment = useCallback(async (id, updates) => {
     setInvestments(prev => prev.map(i => i.id === id ? { ...i, ...updates } : i))
-    try { await api.updateInvestment(id, updates) } catch {}
+    try { await api.updateInvestment(id, updates) } catch { apiErr() }
     addToast('Investment updated')
   }, [addToast])
   const deleteInvestment = useCallback(async (id) => {
     setInvestments(prev => prev.filter(i => i.id !== id))
-    try { await api.deleteInvestment(id) } catch {}
+    try { await api.deleteInvestment(id) } catch { apiErr() }
     addToast('Investment deleted', 'info')
   }, [addToast])
 

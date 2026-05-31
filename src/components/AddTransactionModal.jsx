@@ -2,11 +2,16 @@ import { useState, useEffect } from 'react'
 import { X, ArrowLeftRight } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { generateId } from '../utils/helpers'
+import { labelCls } from '../utils/styles'
 
 const inputCls = `w-full bg-bg-input border border-line-subtle rounded-lg px-3 py-2.5 text-sm text-white
-  placeholder-gray-500 focus:outline-none focus:border-violet-500 focus:bg-bg-elevated transition-colors`
+  placeholder-gray-500 focus:outline-none focus:border-violet-500 focus:bg-bg-elevated
+  focus:ring-2 focus:ring-violet-500/20 transition-colors`
 
-const labelCls = 'block text-xs font-medium text-gray-400 mb-1.5'
+// Adds rose border when a specific field has an error
+function fieldCls(errorField, thisField) {
+  return inputCls + (errorField === thisField ? ' !border-rose-500/60' : '')
+}
 
 export default function AddTransactionModal({ onClose, editTx, defaultType }) {
   const { categories, accounts, addTransaction, updateTransaction, addTransfer, updateTransfer } = useApp()
@@ -21,6 +26,9 @@ export default function AddTransactionModal({ onClose, editTx, defaultType }) {
   const [date, setDate] = useState(editTx?.date || new Date().toISOString().slice(0, 10))
   const [notes, setNotes] = useState(editTx?.notes || '')
   const [error, setError] = useState('')
+  const [errorField, setErrorField] = useState('')
+
+  function fail(msg, field = '') { setError(msg); setErrorField(field) }
 
   // Transfer-specific — resolve from/to regardless of which leg was clicked for edit
   const [fromAccountId, setFromAccountId] = useState(() => {
@@ -44,14 +52,14 @@ export default function AddTransactionModal({ onClose, editTx, defaultType }) {
 
   function handleSubmit(e) {
     e.preventDefault()
-    setError('')
+    setError(''); setErrorField('')
 
     if (type === 'transfer') {
-      if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) return setError('Please enter a valid amount.')
-      if (!fromAccountId) return setError('Please select the source account.')
-      if (!toAccountId) return setError('Please select the destination account.')
-      if (fromAccountId === toAccountId) return setError('Source and destination accounts must be different.')
-      if (!date) return setError('Please select a date.')
+      if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) return fail('Please enter a valid amount.', 'amount')
+      if (!fromAccountId) return fail('Please select the source account.', 'fromAccount')
+      if (!toAccountId) return fail('Please select the destination account.', 'toAccount')
+      if (fromAccountId === toAccountId) return fail('Source and destination accounts must be different.', 'toAccount')
+      if (!date) return fail('Please select a date.', 'date')
 
       const fromAcc = accounts.find(a => a.id === fromAccountId)
       const toAcc = accounts.find(a => a.id === toAccountId)
@@ -73,11 +81,11 @@ export default function AddTransactionModal({ onClose, editTx, defaultType }) {
       return
     }
 
-    if (!name.trim()) return setError('Please enter a name.')
-    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) return setError('Please enter a valid amount.')
-    if (!categoryId) return setError('Please select a category.')
-    if (!accountId) return setError('Please select an account.')
-    if (!date) return setError('Please select a date.')
+    if (!name.trim()) return fail('Please enter a name.', 'name')
+    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) return fail('Please enter a valid amount.', 'amount')
+    if (!categoryId) return fail('Please select a category.', 'category')
+    if (!accountId) return fail('Please select an account.', 'account')
+    if (!date) return fail('Please select a date.', 'date')
 
     const tx = {
       id: editTx?.id || generateId(),
@@ -130,14 +138,14 @@ export default function AddTransactionModal({ onClose, editTx, defaultType }) {
             <>
               <div>
                 <label className={labelCls}>Amount (₹)</label>
-                <input autoFocus className={inputCls} type="number" min="0" step="0.01" placeholder="0"
+                <input autoFocus className={fieldCls(errorField, 'amount')} type="number" min="0" step="0.01" placeholder="0"
                   value={amount} onChange={e => setAmount(e.target.value)} />
               </div>
 
               <div className="grid grid-cols-[1fr_auto_1fr] gap-2 items-end">
                 <div>
                   <label className={labelCls}>From Account</label>
-                  <select className={inputCls} value={fromAccountId} onChange={e => setFromAccountId(e.target.value)}>
+                  <select className={fieldCls(errorField, 'fromAccount')} value={fromAccountId} onChange={e => setFromAccountId(e.target.value)}>
                     <option value="">Select...</option>
                     {accounts.map(a => (
                       <option key={a.id} value={a.id} disabled={a.id === toAccountId}>{a.name}</option>
@@ -151,7 +159,7 @@ export default function AddTransactionModal({ onClose, editTx, defaultType }) {
                 </div>
                 <div>
                   <label className={labelCls}>To Account</label>
-                  <select className={inputCls} value={toAccountId} onChange={e => setToAccountId(e.target.value)}>
+                  <select className={fieldCls(errorField, 'toAccount')} value={toAccountId} onChange={e => setToAccountId(e.target.value)}>
                     <option value="">Select...</option>
                     {accounts.map(a => (
                       <option key={a.id} value={a.id} disabled={a.id === fromAccountId}>{a.name}</option>
@@ -168,7 +176,7 @@ export default function AddTransactionModal({ onClose, editTx, defaultType }) {
 
               <div>
                 <label className={labelCls}>Date</label>
-                <input className={inputCls} type="date" value={date} onChange={e => setDate(e.target.value)} />
+                <input className={fieldCls(errorField, 'date')} type="date" value={date} onChange={e => setDate(e.target.value)} />
               </div>
 
               <div>
@@ -180,27 +188,27 @@ export default function AddTransactionModal({ onClose, editTx, defaultType }) {
             <>
               <div>
                 <label className={labelCls}>Name / Description</label>
-                <input autoFocus className={inputCls} placeholder="e.g. KFC, Monthly Salary"
+                <input autoFocus className={fieldCls(errorField, 'name')} placeholder="e.g. KFC, Monthly Salary"
                   value={name} onChange={e => setName(e.target.value)} />
               </div>
 
               <div>
                 <label className={labelCls}>Amount (₹)</label>
-                <input className={inputCls} type="number" min="0" step="0.01" placeholder="0"
+                <input className={fieldCls(errorField, 'amount')} type="number" min="0" step="0.01" placeholder="0"
                   value={amount} onChange={e => setAmount(e.target.value)} />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={labelCls}>Category</label>
-                  <select className={inputCls} value={categoryId} onChange={e => setCategoryId(e.target.value)}>
+                  <select className={fieldCls(errorField, 'category')} value={categoryId} onChange={e => setCategoryId(e.target.value)}>
                     <option value="">Select...</option>
-                    {filteredCats.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
+                    {filteredCats.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className={labelCls}>Account</label>
-                  <select className={inputCls} value={accountId} onChange={e => setAccountId(e.target.value)}>
+                  <select className={fieldCls(errorField, 'account')} value={accountId} onChange={e => setAccountId(e.target.value)}>
                     <option value="">Select...</option>
                     {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                   </select>
@@ -209,7 +217,7 @@ export default function AddTransactionModal({ onClose, editTx, defaultType }) {
 
               <div>
                 <label className={labelCls}>Date</label>
-                <input className={inputCls} type="date" value={date} onChange={e => setDate(e.target.value)} />
+                <input className={fieldCls(errorField, 'date')} type="date" value={date} onChange={e => setDate(e.target.value)} />
               </div>
 
               <div>
