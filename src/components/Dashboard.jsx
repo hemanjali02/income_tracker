@@ -3,7 +3,7 @@ import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts'
-import { TrendingUp, TrendingDown, Wallet, PiggyBank, ArrowUpRight, ArrowDownRight, ChevronLeft, ChevronRight, Pencil, Trash2, ArrowLeftRight } from 'lucide-react'
+import { TrendingUp, TrendingDown, Wallet, Landmark, ArrowUpRight, ArrowDownRight, ChevronLeft, ChevronRight, Pencil, Trash2, ArrowLeftRight } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import {
   formatCurrency, formatDate, getCurrentMonthKey, getMonthlyTotals,
@@ -13,7 +13,7 @@ import TransactionRow from './TransactionRow'
 import AddTransactionModal from './AddTransactionModal'
 import ConfirmDialog from './ConfirmDialog'
 
-function SummaryCard({ label, value, sub, icon: Icon, color, trend }) {
+function SummaryCard({ label, value, sub, icon: Icon, color, trend, valueColor }) {
   return (
     <div className="bg-bg-card border border-line-subtle rounded-xl p-4 sm:p-5 hover:border-line transition-colors">
       <div className="flex items-start justify-between mb-3">
@@ -28,7 +28,7 @@ function SummaryCard({ label, value, sub, icon: Icon, color, trend }) {
           </span>
         )}
       </div>
-      <div className="text-lg sm:text-xl font-bold text-white mb-1">{value}</div>
+      <div className={`text-lg sm:text-xl font-bold mb-1 ${valueColor || 'text-white'}`}>{value}</div>
       <div className="text-xs text-gray-500">{label}</div>
       {sub && <div className="text-xs text-gray-600 mt-0.5">{sub}</div>}
     </div>
@@ -49,20 +49,21 @@ function ChartTooltip({ active, payload, label }) {
   )
 }
 
-function InsightCard({ icon, title, value }) {
+function InsightCard({ icon, title, value, sub, highlight }) {
   return (
-    <div className="flex items-center gap-3 p-3 bg-bg-elevated rounded-lg border border-line-subtle">
-      <span className="text-lg">{icon}</span>
+    <div className={`flex items-center gap-3 p-3 rounded-lg border ${highlight ? 'bg-violet-500/5 border-violet-500/20' : 'bg-bg-elevated border-line-subtle'}`}>
+      <span className="text-lg flex-shrink-0">{icon}</span>
       <div className="flex-1 min-w-0">
         <div className="text-xs text-gray-500">{title}</div>
         <div className="text-sm font-semibold text-white truncate">{value}</div>
+        {sub && <div className="text-[11px] text-gray-600 mt-0.5">{sub}</div>}
       </div>
     </div>
   )
 }
 
 export default function Dashboard() {
-  const { transactions, categories, accounts, deleteTransaction } = useApp()
+  const { transactions, categories, accounts, budgets, deleteTransaction } = useApp()
   const [editTx, setEditTx] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(null)
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthKey())
@@ -85,17 +86,30 @@ export default function Dashboard() {
   const curTxs = useMemo(() => transactions.filter(t => t.date.startsWith(selectedMonth)), [transactions, selectedMonth])
   const prevTxs = useMemo(() => transactions.filter(t => t.date.startsWith(prevMonth)), [transactions, prevMonth])
 
-  const curIncome = curTxs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
+  const curIncome  = curTxs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
   const curExpense = curTxs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
-  const prevIncome = prevTxs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
+  const prevIncome  = prevTxs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
   const prevExpense = prevTxs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
   const netBalance = curIncome - curExpense
-  const savingsRate = curIncome > 0 ? Math.round((netBalance / curIncome) * 100) : 0
+
+  // Total net worth across all accounts
+  const totalNetWorth = useMemo(() =>
+    accounts.reduce((sum, acc) => sum + getAccountBalance(transactions, acc.id), 0),
+    [accounts, transactions]
+  )
 
   function pctChange(cur, prev) {
     if (!prev) return null
     return Math.round(((cur - prev) / prev) * 100)
   }
+
+  const isCurrentMonth = selectedMonth === getCurrentMonthKey()
+  const [selYear, selMon] = selectedMonth.split('-').map(Number)
+  const totalDaysInMonth = new Date(selYear, selMon, 0).getDate()
+  const daysElapsed = isCurrentMonth ? new Date().getDate() : totalDaysInMonth
+  const daysLeft = isCurrentMonth ? totalDaysInMonth - daysElapsed : 0
+  const avgDaily = curExpense > 0 ? curExpense / Math.max(1, daysElapsed) : 0
+  const projectedMonthEnd = Math.round(curExpense + avgDaily * daysLeft)
 
   const monthlyData = useMemo(() => {
     const all = getMonthlyTotals(transactions)
@@ -103,21 +117,31 @@ export default function Dashboard() {
     const end = idx === -1 ? all.length : idx + 1
     return all.slice(Math.max(0, end - 6), end)
   }, [transactions, selectedMonth])
+
   const categoryData = useMemo(() => getCategoryTotals(curTxs, categories), [curTxs, categories])
-  const dailyData = useMemo(() => getDailyTotals(transactions, selectedMonth), [transactions, selectedMonth])
+  const dailyData    = useMemo(() => getDailyTotals(transactions, selectedMonth), [transactions, selectedMonth])
 
-  const topCategory = categoryData[0]
-  const biggestDay = useMemo(() => {
-    if (!dailyData.length) return null
-    return dailyData.reduce((max, d) => d.expense > max.expense ? d : max, dailyData[0])
-  }, [dailyData])
+  // Top 3 biggest expenses this month
+  const topExpenses = useMemo(() =>
+    [...curTxs.filter(t => t.type === 'expense')]
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 3),
+    [curTxs]
+  )
 
-  const isCurrentMonth = selectedMonth === getCurrentMonthKey()
-  const daysElapsed = isCurrentMonth ? new Date().getDate() : (() => {
-    const [y, m] = selectedMonth.split('-').map(Number)
-    return new Date(y, m, 0).getDate()
-  })()
-  const avgDaily = curExpense > 0 ? Math.round(curExpense / Math.max(1, daysElapsed)) : 0
+  // Budget health for current month
+  const budgetHealth = useMemo(() => {
+    const monthBudgets = budgets.filter(b => b.month === selectedMonth)
+    if (!monthBudgets.length) return null
+    const totalLimit = monthBudgets.reduce((s, b) => s + (b.limit || 0), 0)
+    const totalSpent = monthBudgets.reduce((s, b) => {
+      const spent = curTxs.filter(t => t.type === 'expense' && t.categoryId === b.categoryId)
+        .reduce((x, t) => x + t.amount, 0)
+      return s + Math.min(spent, b.limit || 0)
+    }, 0)
+    const pct = totalLimit > 0 ? Math.round((totalSpent / totalLimit) * 100) : 0
+    return { totalLimit, totalSpent, pct, count: monthBudgets.length }
+  }, [budgets, selectedMonth, curTxs])
 
   const selectedYear = selectedMonth.split('-')[0]
   const yearStats = useMemo(() => {
@@ -145,7 +169,6 @@ export default function Dashboard() {
   }, [curTxs, accounts])
 
   const nonTransferCount = curTxs.filter(t => t.type !== 'transfer').length
-
   const recentTxs = useMemo(() => [...curTxs].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8), [curTxs])
 
   function confirmDel() {
@@ -161,7 +184,7 @@ export default function Dashboard() {
           onConfirm={confirmDel} onCancel={() => setConfirmDelete(null)} />
       )}
 
-      {/* Header with month picker */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-white">{getMonthLabel(selectedMonth)}</h1>
@@ -187,16 +210,28 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Summary cards */}
+      {/* Summary cards — Income / Expenses / Net / Net Worth */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <SummaryCard label="Total Income" value={formatCurrency(curIncome)} icon={TrendingUp} color="#10b981"
           trend={pctChange(curIncome, prevIncome)} sub={`vs ${getMonthLabel(prevMonth)}`} />
         <SummaryCard label="Total Expenses" value={formatCurrency(curExpense)} icon={TrendingDown} color="#f97316"
           trend={pctChange(curExpense, prevExpense)} sub={`vs ${getMonthLabel(prevMonth)}`} />
-        <SummaryCard label="Net Balance" value={formatCurrency(Math.abs(netBalance))} icon={Wallet}
-          color={netBalance >= 0 ? '#8b5cf6' : '#f43f5e'} sub={netBalance >= 0 ? 'Surplus' : 'Deficit'} />
-        <SummaryCard label="Savings Rate" value={`${savingsRate}%`} icon={PiggyBank} color="#f59e0b"
-          sub={savingsRate >= 20 ? 'On track!' : 'Room to improve'} />
+        <SummaryCard
+          label="Net This Month"
+          value={`${netBalance >= 0 ? '+' : '−'}${formatCurrency(Math.abs(netBalance))}`}
+          valueColor={netBalance >= 0 ? 'text-emerald-400' : 'text-rose-400'}
+          icon={Wallet}
+          color={netBalance >= 0 ? '#10b981' : '#f43f5e'}
+          sub={`${daysElapsed} of ${totalDaysInMonth} days`}
+        />
+        <SummaryCard
+          label="Total Net Worth"
+          value={`${totalNetWorth >= 0 ? '' : '−'}${formatCurrency(Math.abs(totalNetWorth))}`}
+          valueColor={totalNetWorth >= 0 ? 'text-white' : 'text-rose-400'}
+          icon={Landmark}
+          color="#8b5cf6"
+          sub={`${accounts.length} account${accounts.length !== 1 ? 's' : ''}`}
+        />
       </div>
 
       {/* Charts row 1 */}
@@ -287,24 +322,61 @@ export default function Dashboard() {
           )}
         </div>
 
+        {/* Insights */}
         <div className="bg-bg-card border border-line-subtle rounded-xl p-5">
           <h3 className="text-sm font-semibold text-white mb-4">Insights</h3>
           <div className="space-y-2">
-            <InsightCard icon="📊" title="Transactions" value={`${nonTransferCount} this month`} />
-            {topCategory && (
-              <InsightCard icon={topCategory.icon} title="Top spending category"
-                value={`${topCategory.name} · ₹${topCategory.value.toLocaleString('en-IN')}`} />
+            <InsightCard icon="📊" title="Transactions this month" value={`${nonTransferCount} transaction${nonTransferCount !== 1 ? 's' : ''}`} />
+
+            {isCurrentMonth && avgDaily > 0 && (
+              <InsightCard
+                icon="📅"
+                title={`${daysLeft} days left — projected spend`}
+                value={formatCurrency(projectedMonthEnd)}
+                sub={`₹${Math.round(avgDaily).toLocaleString('en-IN')}/day avg`}
+                highlight={projectedMonthEnd > curIncome && curIncome > 0}
+              />
             )}
-            {biggestDay && (
-              <InsightCard icon="📅" title="Biggest spending day"
-                value={`Day ${biggestDay.day} · ₹${biggestDay.expense.toLocaleString('en-IN')}`} />
+
+            {topExpenses.length > 0 && (
+              <div className="p-3 bg-bg-elevated rounded-lg border border-line-subtle">
+                <div className="text-xs text-gray-500 mb-2">Top expenses</div>
+                <div className="space-y-1.5">
+                  {topExpenses.map((tx, i) => (
+                    <div key={tx.id} className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-gray-400 truncate">
+                        <span className="text-gray-600 mr-1.5">#{i + 1}</span>{tx.name}
+                      </span>
+                      <span className="text-xs font-semibold text-rose-400 flex-shrink-0">
+                        {formatCurrency(tx.amount)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
-            <InsightCard
-              icon={savingsRate >= 20 ? '🎉' : savingsRate >= 0 ? '💡' : '⚠️'}
-              title="Savings rate"
-              value={savingsRate >= 20 ? `${savingsRate}% — Excellent!` : savingsRate >= 0 ? `${savingsRate}% — Room to grow` : `${savingsRate}% — Over budget`}
-            />
-            <InsightCard icon="💸" title="Avg daily expense" value={`₹${avgDaily.toLocaleString('en-IN')}/day`} />
+
+            {budgetHealth && (
+              <div className="p-3 bg-bg-elevated rounded-lg border border-line-subtle">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-xs text-gray-500">Budget usage ({budgetHealth.count} budgets)</span>
+                  <span className={`text-xs font-semibold ${budgetHealth.pct >= 90 ? 'text-rose-400' : budgetHealth.pct >= 70 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                    {budgetHealth.pct}%
+                  </span>
+                </div>
+                <div className="h-1.5 bg-line rounded-full overflow-hidden">
+                  <div className={`h-full rounded-full transition-all ${budgetHealth.pct >= 90 ? 'bg-rose-500' : budgetHealth.pct >= 70 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                    style={{ width: `${Math.min(100, budgetHealth.pct)}%` }} />
+                </div>
+                <div className="text-[11px] text-gray-600 mt-1">
+                  {formatCurrency(budgetHealth.totalSpent)} of {formatCurrency(budgetHealth.totalLimit)}
+                </div>
+              </div>
+            )}
+
+            {!budgetHealth && (
+              <InsightCard icon="💸" title="Avg daily expense" value={`₹${Math.round(avgDaily).toLocaleString('en-IN')}/day`} />
+            )}
           </div>
         </div>
       </div>
@@ -349,9 +421,9 @@ export default function Dashboard() {
               <div className="text-sm font-bold text-orange-400">{formatCurrency(yearStats.expense)}</div>
             </div>
             <div className="bg-bg-elevated rounded-lg p-3 border border-line-subtle">
-              <div className="text-xs text-gray-500 mb-1">Year Savings</div>
+              <div className="text-xs text-gray-500 mb-1">Year Saved</div>
               <div className={`text-sm font-bold ${yearStats.net >= 0 ? 'text-violet-400' : 'text-rose-400'}`}>
-                {formatCurrency(Math.abs(yearStats.net))}
+                {yearStats.net < 0 && '−'}{formatCurrency(Math.abs(yearStats.net))}
               </div>
             </div>
             <div className="bg-bg-elevated rounded-lg p-3 border border-line-subtle">
@@ -363,7 +435,7 @@ export default function Dashboard() {
           </div>
           <div className="mt-3 text-xs text-gray-600">
             {yearStats.count} transactions across {yearStats.months} month{yearStats.months !== 1 ? 's' : ''}
-            {yearStats.income > 0 && ` · ${Math.round((yearStats.net / yearStats.income) * 100)}% savings rate`}
+            {yearStats.income > 0 && ` · ${Math.round((yearStats.net / yearStats.income) * 100)}% saved`}
           </div>
         </div>
 
@@ -402,7 +474,6 @@ export default function Dashboard() {
           <h3 className="text-sm font-semibold text-white">Recent Transactions</h3>
           <span className="text-xs text-gray-500">{recentTxs.length} shown · {getMonthLabel(selectedMonth)}</span>
         </div>
-        {/* Desktop table */}
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -421,8 +492,7 @@ export default function Dashboard() {
               ) : recentTxs.map(tx => {
                 const pairedAccountId = tx.transferDirection === 'out' ? tx.toAccountId : tx.fromAccountId
                 return (
-                  <TransactionRow
-                    key={tx.id} tx={tx}
+                  <TransactionRow key={tx.id} tx={tx}
                     category={categories.find(c => c.id === tx.categoryId)}
                     account={accounts.find(a => a.id === tx.accountId)}
                     pairedAccount={tx.type === 'transfer' ? accounts.find(a => a.id === pairedAccountId) : null}
@@ -434,7 +504,6 @@ export default function Dashboard() {
           </table>
         </div>
 
-        {/* Mobile cards */}
         <div className="md:hidden divide-y divide-line-subtle">
           {recentTxs.length === 0 ? (
             <div className="py-16 text-center text-gray-500 text-sm">No transactions in {getMonthLabel(selectedMonth)}</div>
@@ -458,46 +527,20 @@ export default function Dashboard() {
                 <div className="flex items-center flex-wrap gap-1.5 mt-1.5">
                   {isTransfer ? (
                     <>
-                      {account && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold text-white"
-                          style={{ backgroundColor: account.color + '20', border: `1px solid ${account.color}22` }}>
-                          <span className="w-1.5 h-1.5 rounded-sm" style={{ backgroundColor: account.color }} />
-                          {account.name}
-                        </span>
-                      )}
-                      {pairedAccount && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] text-blue-300 bg-blue-500/10 border border-blue-500/20">
-                          {isOut ? `→ ${pairedAccount.name}` : `← ${pairedAccount.name}`}
-                        </span>
-                      )}
+                      {account && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold text-white" style={{ backgroundColor: account.color + '20' }}>{account.name}</span>}
+                      {pairedAccount && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] text-blue-300 bg-blue-500/10 border border-blue-500/20">{isOut ? `→ ${pairedAccount.name}` : `← ${pairedAccount.name}`}</span>}
                     </>
                   ) : (
                     <>
-                      {category && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium"
-                          style={{ backgroundColor: category.color + '15', color: category.color }}>
-                          {category.icon} {category.name}
-                        </span>
-                      )}
-                      {account && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold text-white"
-                          style={{ backgroundColor: account.color + '20' }}>
-                          {account.name}
-                        </span>
-                      )}
+                      {category && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium" style={{ backgroundColor: category.color + '15', color: category.color }}>{category.icon} {category.name}</span>}
+                      {account && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold text-white" style={{ backgroundColor: account.color + '20' }}>{account.name}</span>}
                     </>
                   )}
                   <span className="text-[11px] text-gray-500">{formatDate(tx.date)}</span>
                 </div>
                 <div className="flex justify-end gap-0.5 mt-1.5">
-                  <button onClick={() => setEditTx(tx)}
-                    className="p-1.5 rounded-md text-gray-500 hover:text-violet-400 hover:bg-violet-500/10 transition-colors">
-                    <Pencil size={13} />
-                  </button>
-                  <button onClick={() => setConfirmDelete(tx.id)}
-                    className="p-1.5 rounded-md text-gray-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors">
-                    <Trash2 size={13} />
-                  </button>
+                  <button onClick={() => setEditTx(tx)} className="p-1.5 rounded-md text-gray-500 hover:text-violet-400 hover:bg-violet-500/10 transition-colors"><Pencil size={13} /></button>
+                  <button onClick={() => setConfirmDelete(tx.id)} className="p-1.5 rounded-md text-gray-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"><Trash2 size={13} /></button>
                 </div>
               </div>
             )

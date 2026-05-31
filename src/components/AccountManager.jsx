@@ -344,14 +344,6 @@ export default function AccountManager({ onTransfer }) {
                         </span>
                       </div>
                     )}
-                    <div className="h-px bg-line-subtle" />
-                    <div className="flex justify-between text-xs">
-                      <span className="text-gray-400 font-medium">Net</span>
-                      <span className={`font-bold ${stats.net >= 0 ? 'text-purple-400' : 'text-red-400'}`}>
-                        {formatCurrency(Math.abs(stats.net))}
-                        <span className="text-gray-500 font-normal"> {stats.net >= 0 ? 'surplus' : 'deficit'}</span>
-                      </span>
-                    </div>
                   </div>
 
                   <div className="mt-4 h-1 rounded-full" style={{ backgroundColor: acc.color + '40' }}>
