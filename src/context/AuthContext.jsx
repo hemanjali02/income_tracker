@@ -48,8 +48,13 @@ export function AuthProvider({ children }) {
     addToast('Signed out', 'info')
   }, [addToast])
 
+  const changePassword = useCallback(async (currentPassword, newPassword) => {
+    await api.changePassword(currentPassword, newPassword)
+    addToast('Password changed successfully')
+  }, [addToast])
+
   return (
-    <AuthContext.Provider value={{ user, serverMode, ready, login, register, logout }}>
+    <AuthContext.Provider value={{ user, serverMode, ready, login, register, logout, changePassword }}>
       {children}
     </AuthContext.Provider>
   )

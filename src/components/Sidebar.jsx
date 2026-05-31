@@ -1,4 +1,5 @@
-import { LayoutDashboard, ArrowLeftRight, Tag, Wallet, TrendingUp, Target, Menu, X, Database, HardDrive, LogOut, User, Briefcase } from 'lucide-react'
+import { useState } from 'react'
+import { LayoutDashboard, ArrowLeftRight, Tag, Wallet, TrendingUp, Target, Menu, X, Database, HardDrive, LogOut, Briefcase, KeyRound, Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
 const navItems = [
@@ -10,8 +11,124 @@ const navItems = [
   { id: 'accounts', label: 'Accounts', icon: Wallet },
 ]
 
+const inputCls = `w-full bg-bg-input border border-line-subtle rounded-lg px-3 py-2 text-sm text-white
+  placeholder-gray-500 focus:outline-none focus:border-violet-500 transition-colors`
+
+function ChangePasswordModal({ onClose }) {
+  const { changePassword } = useAuth()
+  const [current, setCurrent] = useState('')
+  const [next, setNext] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [showCurrent, setShowCurrent] = useState(false)
+  const [showNext, setShowNext] = useState(false)
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    setError('')
+    if (next.length < 8) return setError('New password must be at least 8 characters')
+    if (!/[0-9]/.test(next)) return setError('New password must contain at least one number')
+    if (next !== confirm) return setError('Passwords do not match')
+    if (current === next) return setError('New password must differ from current password')
+    setLoading(true)
+    try {
+      await changePassword(current, next)
+      onClose()
+    } catch (err) {
+      setError(err.message || 'Failed to change password')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+      <div className="relative glass rounded-2xl w-full max-w-sm shadow-2xl animate-in" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-line">
+          <div className="flex items-center gap-2">
+            <KeyRound size={15} className="text-violet-400" />
+            <h2 className="text-white font-semibold text-sm">Change Password</h2>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
+            <X size={16} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="px-5 py-4 space-y-3">
+          {/* Current password */}
+          <div>
+            <label className="block text-xs text-gray-400 mb-1.5">Current Password</label>
+            <div className="relative">
+              <input className={inputCls + ' pr-9'} type={showCurrent ? 'text' : 'password'}
+                placeholder="••••••••" value={current} onChange={e => setCurrent(e.target.value)} autoFocus />
+              <button type="button" tabIndex={-1} onClick={() => setShowCurrent(v => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors">
+                {showCurrent ? <EyeOff size={13} /> : <Eye size={13} />}
+              </button>
+            </div>
+          </div>
+
+          {/* New password */}
+          <div>
+            <label className="block text-xs text-gray-400 mb-1.5">New Password</label>
+            <div className="relative">
+              <input className={inputCls + ' pr-9'} type={showNext ? 'text' : 'password'}
+                placeholder="min 8 chars + number" value={next} onChange={e => setNext(e.target.value)} />
+              <button type="button" tabIndex={-1} onClick={() => setShowNext(v => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors">
+                {showNext ? <EyeOff size={13} /> : <Eye size={13} />}
+              </button>
+            </div>
+            {/* Inline strength bar */}
+            {next && (
+              <div className="flex gap-1 mt-1.5">
+                {[1,2,3,4].map(i => {
+                  const score = [next.length>=8, /[A-Z]/.test(next), /[0-9]/.test(next), /[^A-Za-z0-9]/.test(next)].filter(Boolean).length
+                  const c = ['','bg-rose-500','bg-amber-500','bg-blue-500','bg-emerald-500'][score]
+                  return <div key={i} className={`h-1 flex-1 rounded-full ${i<=score ? c : 'bg-line'}`} />
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Confirm */}
+          <div>
+            <label className="block text-xs text-gray-400 mb-1.5">Confirm New Password</label>
+            <div className="relative">
+              <input className={`${inputCls} ${confirm && confirm !== next ? 'border-rose-500/50' : confirm && confirm === next ? 'border-emerald-500/50' : ''}`}
+                type="password" placeholder="••••••••" value={confirm} onChange={e => setConfirm(e.target.value)} />
+            </div>
+            {confirm && confirm !== next && <p className="text-[11px] text-rose-400 mt-1">Passwords don't match</p>}
+            {confirm && confirm === next && <p className="text-[11px] text-emerald-400 mt-1">Passwords match ✓</p>}
+          </div>
+
+          {error && (
+            <div className="text-rose-400 text-xs bg-rose-500/10 border border-rose-500/20 rounded-lg px-3 py-2">
+              {error}
+            </div>
+          )}
+
+          <div className="flex gap-2 pt-1">
+            <button type="submit" disabled={loading}
+              className="flex-1 btn-primary py-2 text-white text-sm font-semibold rounded-lg disabled:opacity-50">
+              {loading ? 'Saving…' : 'Update Password'}
+            </button>
+            <button type="button" onClick={onClose}
+              className="px-4 py-2 text-gray-400 hover:text-white text-sm transition-colors">
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 export default function Sidebar({ activeView, onNavigate, mobileOpen, onCloseMobile }) {
   const { user, serverMode, logout } = useAuth()
+  const [showChangePwd, setShowChangePwd] = useState(false)
 
   function handleNav(id) {
     onNavigate(id)
@@ -20,6 +137,8 @@ export default function Sidebar({ activeView, onNavigate, mobileOpen, onCloseMob
 
   return (
     <>
+      {showChangePwd && <ChangePasswordModal onClose={() => setShowChangePwd(false)} />}
+
       {mobileOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 lg:hidden" onClick={onCloseMobile} />
       )}
@@ -64,9 +183,9 @@ export default function Sidebar({ activeView, onNavigate, mobileOpen, onCloseMob
         {/* User card */}
         <div className="border-t border-line-subtle px-3 py-3">
           {user ? (
-            <div className="bg-bg-elevated rounded-lg p-3 border border-line-subtle">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-xs font-bold text-white">
+            <div className="bg-bg-elevated rounded-lg p-3 border border-line-subtle space-y-2">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
                   {user.username.charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -74,10 +193,17 @@ export default function Sidebar({ activeView, onNavigate, mobileOpen, onCloseMob
                   <div className="text-[10px] text-gray-500">Signed in</div>
                 </div>
                 <button onClick={logout} title="Sign out"
-                  className="p-1.5 text-gray-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors">
+                  className="p-1.5 text-gray-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors flex-shrink-0">
                   <LogOut size={13} />
                 </button>
               </div>
+              <button
+                onClick={() => setShowChangePwd(true)}
+                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[11px] text-gray-500 hover:text-violet-300 hover:bg-violet-500/10 transition-colors border border-transparent hover:border-violet-500/20"
+              >
+                <KeyRound size={11} />
+                Change Password
+              </button>
             </div>
           ) : (
             <div className="flex items-center gap-2 text-[10px] text-gray-500 px-2">

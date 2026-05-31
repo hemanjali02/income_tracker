@@ -16,11 +16,13 @@ export async function connectDB() {
 // ─── Schemas & Models ───────────────────────────────────
 
 const userSchema = new mongoose.Schema({
-  id:           { type: String, required: true, unique: true },
-  username:     { type: String, required: true, unique: true },
-  passwordSalt: String,
-  passwordHash: String,
-  createdAt:    { type: String, default: () => new Date().toISOString() },
+  id:             { type: String, required: true, unique: true },
+  username:       { type: String, required: true, unique: true },
+  passwordSalt:   String,
+  passwordHash:   String,
+  createdAt:      { type: String, default: () => new Date().toISOString() },
+  failedAttempts: { type: Number, default: 0 },
+  lockUntil:      { type: Date, default: null },
 })
 export const User = mongoose.model('User', userSchema)
 

@@ -89,16 +89,38 @@ app.post('/api/auth/login', async (req, res) => {
     const { username, password } = req.body || {}
     if (!username || !password) return res.status(400).json({ error: 'Username and password required' })
 
-    const user = await User.findOne({ username: { $regex: new RegExp(`^${username}$`, 'i') } }).lean()
+    const user = await User.findOne({ username: { $regex: new RegExp(`^${username}$`, 'i') } })
     if (!user) return res.status(401).json({ error: 'Invalid credentials' })
-    if (!verifyPassword(password, user.passwordSalt, user.passwordHash)) {
-      return res.status(401).json({ error: 'Invalid credentials' })
+
+    // Check account lockout
+    if (user.lockUntil && user.lockUntil > new Date()) {
+      const mins = Math.ceil((user.lockUntil - new Date()) / 60000)
+      return res.status(429).json({ error: `Account locked. Try again in ${mins} minute${mins !== 1 ? 's' : ''}.` })
     }
+
+    if (!verifyPassword(password, user.passwordSalt, user.passwordHash)) {
+      const attempts = (user.failedAttempts || 0) + 1
+      const update = { failedAttempts: attempts }
+      if (attempts >= 5) {
+        update.lockUntil = new Date(Date.now() + 15 * 60 * 1000) // lock 15 min
+        update.failedAttempts = 0
+      }
+      await User.updateOne({ id: user.id }, update)
+      const remaining = Math.max(0, 5 - attempts)
+      return res.status(401).json({
+        error: remaining > 0
+          ? `Invalid credentials. ${remaining} attempt${remaining !== 1 ? 's' : ''} remaining.`
+          : 'Too many failed attempts. Account locked for 15 minutes.'
+      })
+    }
+
+    // Success — reset lockout counters
+    await User.updateOne({ id: user.id }, { failedAttempts: 0, lockUntil: null })
 
     const token = generateToken()
     await Session.create({ token, userId: user.id })
 
-    res.json({ token, user: safeUser(user) })
+    res.json({ token, user: safeUser(user.toObject()) })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
@@ -112,6 +134,29 @@ app.post('/api/auth/logout', requireAuth, async (req, res) => {
   try {
     const token = getTokenFromRequest(req)
     await Session.deleteOne({ token })
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+app.post('/api/auth/change-password', requireAuth, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body || {}
+    if (!currentPassword || !newPassword) return res.status(400).json({ error: 'Both fields required' })
+    if (newPassword.length < 8) return res.status(400).json({ error: 'New password must be at least 8 characters' })
+
+    const user = await User.findOne({ id: req.userId })
+    if (!verifyPassword(currentPassword, user.passwordSalt, user.passwordHash)) {
+      return res.status(401).json({ error: 'Current password is incorrect' })
+    }
+
+    const { salt, hash } = hashPassword(newPassword)
+    await User.updateOne({ id: req.userId }, { passwordSalt: salt, passwordHash: hash })
+    // Invalidate all other sessions
+    const currentToken = getTokenFromRequest(req)
+    await Session.deleteMany({ userId: req.userId, token: { $ne: currentToken } })
+
     res.json({ ok: true })
   } catch (err) {
     res.status(500).json({ error: err.message })
