@@ -15,6 +15,10 @@ export function AppProvider({ children }) {
   const [accounts, setAccounts] = useState([])
   const [budgets, setBudgets] = useState([])
   const [investments, setInvestments] = useState([])
+  const [recurring, setRecurring] = useState([])
+  const [goals, setGoals] = useState([])
+  const [receivables, setReceivables] = useState([])
+  const [netWorthSnapshots, setNetWorthSnapshots] = useState([])
   const [loading, setLoading] = useState(true)
   const undoTimers = useRef({})
 
@@ -26,11 +30,13 @@ export function AppProvider({ children }) {
         if (serverMode && !user) {
           setTransactions([]); setCategories([]); setAccounts([])
           setBudgets([]); setInvestments([])
+          setRecurring([]); setGoals([]); setReceivables([]); setNetWorthSnapshots([])
           return
         }
-        const [txs, cats, accs, buds, invs] = await Promise.all([
+        const [txs, cats, accs, buds, invs, recs, gls, rcvs, nws] = await Promise.all([
           api.getTransactions(), api.getCategories(), api.getAccounts(),
           api.getBudgets(), api.getInvestments(),
+          api.getRecurring(), api.getGoals(), api.getReceivables(), api.getNetWorthSnapshots(),
         ])
         if (!serverMode) {
           setTransactions(txs.length ? txs : sampleTransactions)
@@ -40,6 +46,7 @@ export function AppProvider({ children }) {
           setTransactions(txs); setCategories(cats); setAccounts(accs)
         }
         setBudgets(buds); setInvestments(invs)
+        setRecurring(recs); setGoals(gls); setReceivables(rcvs); setNetWorthSnapshots(nws)
       } finally {
         setLoading(false)
       }
@@ -201,6 +208,97 @@ export function AppProvider({ children }) {
     try { await api.deleteBudget(id) } catch {}
   }, [])
 
+  // Recurring transactions
+  const addRecurring = useCallback(async (r) => {
+    setRecurring(prev => [...prev, r])
+    try { await api.addRecurring(r) } catch { apiErr() }
+    addToast('Recurring item added')
+  }, [addToast])
+  const updateRecurring = useCallback(async (id, updates) => {
+    setRecurring(prev => prev.map(r => r.id === id ? { ...r, ...updates } : r))
+    try { await api.updateRecurring(id, updates) } catch { apiErr() }
+    addToast('Recurring updated')
+  }, [addToast])
+  const deleteRecurring = useCallback(async (id) => {
+    setRecurring(prev => prev.filter(r => r.id !== id))
+    try { await api.deleteRecurring(id) } catch { apiErr() }
+    addToast('Recurring deleted', 'info')
+  }, [addToast])
+
+  // Goals
+  const addGoal = useCallback(async (g) => {
+    setGoals(prev => [...prev, g])
+    try { await api.addGoal(g) } catch { apiErr() }
+    addToast('Goal created')
+  }, [addToast])
+  const updateGoal = useCallback(async (id, updates) => {
+    setGoals(prev => prev.map(g => g.id === id ? { ...g, ...updates } : g))
+    try { await api.updateGoal(id, updates) } catch { apiErr() }
+    addToast('Goal updated')
+  }, [addToast])
+  const deleteGoal = useCallback(async (id) => {
+    setGoals(prev => prev.filter(g => g.id !== id))
+    try { await api.deleteGoal(id) } catch { apiErr() }
+    addToast('Goal deleted', 'info')
+  }, [addToast])
+
+  // Receivables
+  const addReceivable = useCallback(async (r) => {
+    setReceivables(prev => [r, ...prev])
+    try { await api.addReceivable(r) } catch { apiErr() }
+    addToast('Receivable added')
+  }, [addToast])
+  const updateReceivable = useCallback(async (id, updates) => {
+    setReceivables(prev => prev.map(r => r.id === id ? { ...r, ...updates } : r))
+    try { await api.updateReceivable(id, updates) } catch { apiErr() }
+  }, [addToast])
+  const deleteReceivable = useCallback(async (id) => {
+    setReceivables(prev => prev.filter(r => r.id !== id))
+    try { await api.deleteReceivable(id) } catch { apiErr() }
+    addToast('Receivable deleted', 'info')
+  }, [addToast])
+
+  // When marking a receivable received, create an income transaction
+  const markReceivableReceived = useCallback(async (receivable, accountId, categoryId) => {
+    const txId = generateId()
+    const tx = {
+      id: txId,
+      type: 'income',
+      name: `Received from ${receivable.name}`,
+      amount: receivable.amount,
+      categoryId,
+      accountId,
+      date: new Date().toISOString().slice(0, 10),
+      notes: receivable.notes ? `Receivable: ${receivable.notes}` : 'Receivable collected',
+    }
+    setTransactions(prev => [tx, ...prev])
+    const updates = {
+      status: 'received',
+      receivedDate: tx.date,
+      receivedAccountId: accountId,
+      linkedTransactionId: txId,
+    }
+    setReceivables(prev => prev.map(r => r.id === receivable.id ? { ...r, ...updates } : r))
+    try {
+      await api.addTransaction(tx)
+      await api.updateReceivable(receivable.id, updates)
+    } catch { apiErr() }
+    addToast(`Marked received — added to account`)
+  }, [addToast])
+
+  // Net worth snapshot helper
+  const addNetWorthSnapshot = useCallback(async (snap) => {
+    setNetWorthSnapshots(prev => {
+      // Replace if same date already exists
+      const idx = prev.findIndex(s => s.date === snap.date)
+      if (idx !== -1) {
+        const next = [...prev]; next[idx] = { ...next[idx], ...snap }; return next
+      }
+      return [...prev, snap]
+    })
+    try { await api.addNetWorthSnapshot(snap) } catch {}
+  }, [])
+
   // Investments
   const addInvestment = useCallback(async (inv) => {
     setInvestments(prev => [...prev, inv])
@@ -229,11 +327,16 @@ export function AppProvider({ children }) {
   return (
     <AppContext.Provider value={{
       transactions, categories, accounts, budgets, investments,
+      recurring, goals, receivables, netWorthSnapshots,
       addTransaction, updateTransaction, deleteTransaction, bulkDeleteTransactions, addTransfer, updateTransfer,
       addCategory, updateCategory, deleteCategory,
       addAccount, updateAccount, deleteAccount,
       saveBudget, deleteBudget,
       addInvestment, updateInvestment, deleteInvestment,
+      addRecurring, updateRecurring, deleteRecurring,
+      addGoal, updateGoal, deleteGoal,
+      addReceivable, updateReceivable, deleteReceivable, markReceivableReceived,
+      addNetWorthSnapshot,
     }}>
       {children}
     </AppContext.Provider>

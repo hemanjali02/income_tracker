@@ -115,6 +115,10 @@ const cats = resource('categories', 'it_categories')
 const accs = resource('accounts', 'it_accounts')
 const buds = resource('budgets', 'it_budgets')
 const invs = resource('investments', 'it_investments')
+const recs = resource('recurring', 'it_recurring')
+const gls  = resource('goals', 'it_goals')
+const rcvs = resource('receivables', 'it_receivables')
+const nws  = resource('networthsnapshots', 'it_networthsnapshots')
 
 export const api = {
   async isServerMode() { return checkServer() },
@@ -203,4 +207,26 @@ export const api = {
   addInvestment: (i) => invs.create(i),
   updateInvestment: (id, data) => invs.update(id, data),
   deleteInvestment: (id) => invs.remove(id),
+
+  // Recurring
+  getRecurring: () => recs.list(),
+  addRecurring: (r) => recs.create(r),
+  updateRecurring: (id, data) => recs.update(id, data),
+  deleteRecurring: (id) => recs.remove(id),
+
+  // Goals
+  getGoals: () => gls.list(),
+  addGoal: (g) => gls.create(g),
+  updateGoal: (id, data) => gls.update(id, data),
+  deleteGoal: (id) => gls.remove(id),
+
+  // Receivables
+  getReceivables: () => rcvs.list(),
+  addReceivable: (r) => rcvs.create(r),
+  updateReceivable: (id, data) => rcvs.update(id, data),
+  deleteReceivable: (id) => rcvs.remove(id),
+
+  // Net Worth Snapshots
+  getNetWorthSnapshots: () => nws.list(),
+  addNetWorthSnapshot: (s) => nws.create(s),
 }

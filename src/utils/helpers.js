@@ -111,6 +111,32 @@ export function getAccountBalance(transactions, accountId) {
     }, 0)
 }
 
+// Compute the next due date for a recurring item
+export function getNextDueDate(recurring, fromDate = new Date()) {
+  if (!recurring.active) return null
+  const start = new Date(recurring.startDate)
+  const last = recurring.lastGeneratedDate ? new Date(recurring.lastGeneratedDate) : null
+  const from = last && last > start ? last : start
+
+  const next = new Date(from)
+  if (recurring.frequency === 'weekly') {
+    // Next 7 days from last gen or start
+    next.setDate(next.getDate() + (last ? 7 : 0))
+  } else if (recurring.frequency === 'monthly') {
+    if (last) next.setMonth(next.getMonth() + 1)
+    if (recurring.dayOfMonth) next.setDate(Math.min(recurring.dayOfMonth, daysInMonth(next.getFullYear(), next.getMonth())))
+  } else if (recurring.frequency === 'yearly') {
+    if (last) next.setFullYear(next.getFullYear() + 1)
+    if (recurring.monthOfYear) next.setMonth(recurring.monthOfYear - 1)
+    if (recurring.dayOfMonth) next.setDate(Math.min(recurring.dayOfMonth, daysInMonth(next.getFullYear(), next.getMonth())))
+  }
+  return next.toISOString().slice(0, 10)
+}
+
+function daysInMonth(year, monthIdx) {
+  return new Date(year, monthIdx + 1, 0).getDate()
+}
+
 export function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2)
 }

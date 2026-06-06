@@ -1,14 +1,38 @@
 import { useState } from 'react'
-import { LayoutDashboard, ArrowLeftRight, Tag, Wallet, TrendingUp, Target, Menu, X, Database, HardDrive, LogOut, Briefcase, KeyRound, Eye, EyeOff } from 'lucide-react'
+import { LayoutDashboard, ArrowLeftRight, Tag, Wallet, TrendingUp, Target, Menu, X, Database, HardDrive, LogOut, Briefcase, KeyRound, Eye, EyeOff, Repeat, Flag, HandCoins, LineChart } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
-const navItems = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'transactions', label: 'Transactions', icon: ArrowLeftRight },
-  { id: 'investments', label: 'Investments', icon: Briefcase },
-  { id: 'budgets', label: 'Budgets', icon: Target },
-  { id: 'categories', label: 'Categories', icon: Tag },
-  { id: 'accounts', label: 'Accounts', icon: Wallet },
+const navSections = [
+  {
+    label: 'Overview',
+    items: [
+      { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { id: 'analysis',  label: 'Analysis',  icon: LineChart },
+    ],
+  },
+  {
+    label: 'Money',
+    items: [
+      { id: 'transactions', label: 'Transactions', icon: ArrowLeftRight },
+      { id: 'recurring',    label: 'Recurring',    icon: Repeat },
+      { id: 'receivables',  label: 'Receivables',  icon: HandCoins },
+    ],
+  },
+  {
+    label: 'Planning',
+    items: [
+      { id: 'budgets',     label: 'Budgets',     icon: Target },
+      { id: 'goals',       label: 'Goals',       icon: Flag },
+      { id: 'investments', label: 'Investments', icon: Briefcase },
+    ],
+  },
+  {
+    label: 'Setup',
+    items: [
+      { id: 'accounts',   label: 'Accounts',   icon: Wallet },
+      { id: 'categories', label: 'Categories', icon: Tag },
+    ],
+  },
 ]
 
 const inputCls = `w-full bg-bg-input border border-line-subtle rounded-lg px-3 py-2 text-sm text-white
@@ -160,24 +184,31 @@ export default function Sidebar({ activeView, onNavigate, mobileOpen, onCloseMob
           </button>
         </div>
 
-        <nav className="flex-1 py-4 px-3 overflow-y-auto">
-          {navItems.map(({ id, label, icon: Icon }) => {
-            const active = activeView === id
-            return (
-              <button
-                key={id}
-                onClick={() => handleNav(id)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 text-sm font-medium transition-all duration-150 ${
-                  active
-                    ? 'bg-violet-500/10 text-violet-200 border-l-2 border-violet-400 pl-[10px]'
-                    : 'text-gray-400 hover:text-gray-200 hover:bg-white/[0.04] border-l-2 border-transparent'
-                }`}
-              >
-                <Icon size={16} className={active ? 'text-violet-300' : ''} />
-                {label}
-              </button>
-            )
-          })}
+        <nav className="flex-1 py-3 px-3 overflow-y-auto">
+          {navSections.map(section => (
+            <div key={section.label} className="mb-3">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-gray-600 px-3 mb-1.5">
+                {section.label}
+              </div>
+              {section.items.map(({ id, label, icon: Icon }) => {
+                const active = activeView === id
+                return (
+                  <button
+                    key={id}
+                    onClick={() => handleNav(id)}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg mb-0.5 text-sm font-medium transition-all duration-150 ${
+                      active
+                        ? 'bg-violet-500/10 text-violet-200 border-l-2 border-violet-400 pl-[10px]'
+                        : 'text-gray-400 hover:text-gray-200 hover:bg-white/[0.04] border-l-2 border-transparent'
+                    }`}
+                  >
+                    <Icon size={15} className={active ? 'text-violet-300' : ''} />
+                    {label}
+                  </button>
+                )
+              })}
+            </div>
+          ))}
         </nav>
 
         {/* User card */}

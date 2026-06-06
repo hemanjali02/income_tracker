@@ -214,6 +214,10 @@ makeCrudRoutes('transactions')
 makeCrudRoutes('categories')
 makeCrudRoutes('accounts')
 makeCrudRoutes('investments')
+makeCrudRoutes('recurring')
+makeCrudRoutes('goals')
+makeCrudRoutes('receivables')
+makeCrudRoutes('networthsnapshots')
 
 // ─── Budgets ─────────────────────────────────────────────
 app.get('/api/budgets', requireAuth, async (req, res) => {

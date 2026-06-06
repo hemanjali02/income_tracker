@@ -92,12 +92,79 @@ const investmentSchema = new mongoose.Schema({
 })
 export const Investment = mongoose.model('Investment', investmentSchema)
 
+// Recurring transactions — templates that auto-generate transactions on due dates
+const recurringSchema = new mongoose.Schema({
+  id:                 { type: String, required: true, unique: true },
+  userId:             { type: String, required: true, index: true },
+  type:               String,  // 'income' | 'expense'
+  name:               String,
+  amount:             Number,
+  categoryId:         String,
+  accountId:          String,
+  notes:              String,
+  frequency:          String,  // 'weekly' | 'monthly' | 'yearly'
+  dayOfMonth:         Number,  // for monthly/yearly (1-31)
+  monthOfYear:        Number,  // for yearly (1-12)
+  startDate:          String,  // YYYY-MM-DD
+  lastGeneratedDate:  String,  // last date a tx was actually generated
+  active:             { type: Boolean, default: true },
+})
+export const Recurring = mongoose.model('Recurring', recurringSchema)
+
+// Financial goals — savings targets
+const goalSchema = new mongoose.Schema({
+  id:           { type: String, required: true, unique: true },
+  userId:       { type: String, required: true, index: true },
+  name:         String,
+  targetAmount: Number,
+  currentAmount:{ type: Number, default: 0 },
+  targetDate:   String,   // YYYY-MM-DD
+  accountId:    String,   // optional — link to account
+  color:        String,
+  notes:        String,
+  status:       { type: String, default: 'active' }, // active | completed | abandoned
+  createdAt:    { type: String, default: () => new Date().toISOString() },
+})
+export const Goal = mongoose.model('Goal', goalSchema)
+
+// Receivables — money owed to user
+const receivableSchema = new mongoose.Schema({
+  id:                  { type: String, required: true, unique: true },
+  userId:              { type: String, required: true, index: true },
+  name:                String,   // who owes
+  amount:              Number,
+  dueDate:             String,   // YYYY-MM-DD
+  notes:               String,
+  status:              { type: String, default: 'pending' }, // pending | received | written-off
+  receivedDate:        String,
+  receivedAccountId:   String,
+  linkedTransactionId: String,
+  createdAt:           { type: String, default: () => new Date().toISOString() },
+})
+export const Receivable = mongoose.model('Receivable', receivableSchema)
+
+// Net worth snapshots — for history chart
+const netWorthSnapshotSchema = new mongoose.Schema({
+  id:           { type: String, required: true, unique: true },
+  userId:       { type: String, required: true, index: true },
+  date:         String,   // YYYY-MM-DD
+  netWorth:     Number,
+  accountTotal: Number,
+  investmentTotal: Number,
+})
+netWorthSnapshotSchema.index({ userId: 1, date: 1 }, { unique: true })
+export const NetWorthSnapshot = mongoose.model('NetWorthSnapshot', netWorthSnapshotSchema)
+
 // ─── Model map (for generic CRUD helper) ────────────────
 export const models = {
   transactions: Transaction,
   categories:   Category,
   accounts:     Account,
   investments:  Investment,
+  recurring:    Recurring,
+  goals:        Goal,
+  receivables:  Receivable,
+  networthsnapshots: NetWorthSnapshot,
 }
 
 // ─── Default data seeding ───────────────────────────────

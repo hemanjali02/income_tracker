@@ -9,6 +9,10 @@ import CategoryManager from './components/CategoryManager'
 import AccountManager from './components/AccountManager'
 import BudgetView from './components/BudgetView'
 import Investments from './components/Investments'
+import Recurring from './components/Recurring'
+import Goals from './components/Goals'
+import Receivables from './components/Receivables'
+import Analysis from './components/Analysis'
 import AddTransactionModal from './components/AddTransactionModal'
 import Login from './components/Login'
 import Toasts from './components/Toast'
@@ -45,7 +49,12 @@ function AppShell() {
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' })
-    const labels = { dashboard: 'Dashboard', transactions: 'Transactions', investments: 'Investments', budgets: 'Budgets', categories: 'Categories', accounts: 'Accounts' }
+    const labels = {
+      dashboard: 'Dashboard', analysis: 'Analysis',
+      transactions: 'Transactions', recurring: 'Recurring', receivables: 'Receivables',
+      investments: 'Investments', budgets: 'Budgets', goals: 'Goals',
+      categories: 'Categories', accounts: 'Accounts',
+    }
     document.title = `${labels[view] || view} | Income Tracker`
   }, [view])
 
@@ -77,9 +86,13 @@ function AppShell() {
 
         <div className="px-4 sm:px-8 py-6">
           {view === 'dashboard' && <Dashboard />}
+          {view === 'analysis' && <Analysis />}
           {view === 'transactions' && <Transactions onAdd={() => openAdd()} />}
+          {view === 'recurring' && <Recurring />}
+          {view === 'receivables' && <Receivables />}
           {view === 'investments' && <Investments />}
           {view === 'budgets' && <BudgetView />}
+          {view === 'goals' && <Goals />}
           {view === 'categories' && <CategoryManager />}
           {view === 'accounts' && <AccountManager onTransfer={() => openAdd('transfer')} />}
         </div>

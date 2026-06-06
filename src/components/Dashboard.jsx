@@ -12,10 +12,14 @@ import {
 import TransactionRow from './TransactionRow'
 import AddTransactionModal from './AddTransactionModal'
 import ConfirmDialog from './ConfirmDialog'
+import NetWorthHistoryModal from './NetWorthHistoryModal'
 
-function SummaryCard({ label, value, sub, icon: Icon, color, trend, valueColor }) {
+function SummaryCard({ label, value, sub, icon: Icon, color, trend, valueColor, onClick }) {
   return (
-    <div className="bg-bg-card border border-line-subtle rounded-xl p-4 sm:p-5 hover:border-line transition-colors">
+    <div
+      onClick={onClick}
+      className={`bg-bg-card border border-line-subtle rounded-xl p-4 sm:p-5 hover:border-line transition-colors ${onClick ? 'cursor-pointer' : ''}`}
+    >
       <div className="flex items-start justify-between mb-3">
         <div className="w-10 h-10 rounded-xl flex items-center justify-center"
           style={{ backgroundColor: color + '18', border: `1px solid ${color}20` }}>
@@ -67,6 +71,7 @@ export default function Dashboard() {
   const [editTx, setEditTx] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(null)
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthKey())
+  const [showNetWorthHistory, setShowNetWorthHistory] = useState(false)
 
   const prevMonth = useMemo(() => {
     const [y, m] = selectedMonth.split('-').map(Number)
@@ -183,6 +188,7 @@ export default function Dashboard() {
         <ConfirmDialog title="Delete Transaction" message="This action cannot be undone."
           onConfirm={confirmDel} onCancel={() => setConfirmDelete(null)} />
       )}
+      {showNetWorthHistory && <NetWorthHistoryModal onClose={() => setShowNetWorthHistory(false)} />}
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -230,7 +236,8 @@ export default function Dashboard() {
           valueColor={totalNetWorth >= 0 ? 'text-white' : 'text-rose-400'}
           icon={Landmark}
           color="#8b5cf6"
-          sub={`${accounts.length} account${accounts.length !== 1 ? 's' : ''}`}
+          sub={<span className="text-violet-400">View history →</span>}
+          onClick={() => setShowNetWorthHistory(true)}
         />
       </div>
 
