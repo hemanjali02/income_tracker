@@ -1,0 +1,168 @@
+import jsPDF from 'jspdf'
+import { formatCurrency, getMonthLabel, getCategoryTotals, getAccountBalance } from './helpers'
+
+// Helper: nicer Rupee rendering since jsPDF uses ASCII by default
+function rupee(amount) {
+  return 'Rs. ' + Math.abs(amount).toLocaleString('en-IN', { maximumFractionDigits: 0 })
+}
+
+export function generateMonthlyReport({ monthKey, transactions, categories, accounts, investments }) {
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' })
+  const pageW = doc.internal.pageSize.getWidth()
+  const margin = 40
+  let y = 50
+
+  const monthTxs = transactions.filter(t => t.date.startsWith(monthKey))
+  const income  = monthTxs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
+  const expense = monthTxs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
+  const net = income - expense
+  const catTotals = getCategoryTotals(monthTxs, categories)
+
+  // Header
+  doc.setFillColor(139, 92, 246)
+  doc.rect(0, 0, pageW, 30, 'F')
+  doc.setTextColor(255, 255, 255)
+  doc.setFontSize(10)
+  doc.text('INCOME TRACKER', margin, 20)
+  doc.text('Monthly Report', pageW - margin, 20, { align: 'right' })
+
+  // Title
+  doc.setTextColor(0, 0, 0)
+  doc.setFontSize(22)
+  doc.setFont(undefined, 'bold')
+  doc.text(getMonthLabel(monthKey), margin, y + 20)
+  y += 40
+
+  doc.setFontSize(9)
+  doc.setFont(undefined, 'normal')
+  doc.setTextColor(120)
+  doc.text(`Generated on ${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}`, margin, y)
+  y += 30
+
+  // Summary boxes
+  drawSummaryBox(doc, margin, y, 120, 60, 'INCOME', rupee(income), [16, 185, 129])
+  drawSummaryBox(doc, margin + 130, y, 120, 60, 'EXPENSES', rupee(expense), [249, 115, 22])
+  drawSummaryBox(doc, margin + 260, y, 120, 60, net >= 0 ? 'SAVED' : 'OVERSPENT', rupee(net), net >= 0 ? [139, 92, 246] : [244, 63, 94])
+  drawSummaryBox(doc, margin + 390, y, 120, 60, 'TRANSACTIONS', String(monthTxs.filter(t => t.type !== 'transfer').length), [100, 116, 139])
+  y += 80
+
+  // Spending by Category
+  doc.setFontSize(13)
+  doc.setFont(undefined, 'bold')
+  doc.setTextColor(0)
+  doc.text('Spending by Category', margin, y)
+  y += 18
+
+  doc.setFontSize(9)
+  if (catTotals.length === 0) {
+    doc.setTextColor(150)
+    doc.setFont(undefined, 'normal')
+    doc.text('No expenses this month', margin, y)
+    y += 20
+  } else {
+    const maxCatVal = catTotals[0].value
+    for (const cat of catTotals.slice(0, 10)) {
+      const barWidth = 250 * (cat.value / maxCatVal)
+      const pct = expense > 0 ? (cat.value / expense) * 100 : 0
+      doc.setFont(undefined, 'normal')
+      doc.setTextColor(50)
+      doc.text(cat.name, margin, y)
+
+      doc.setFillColor(...hexToRgb(cat.color))
+      doc.roundedRect(margin + 120, y - 8, barWidth, 10, 2, 2, 'F')
+
+      doc.setTextColor(80)
+      doc.text(`${rupee(cat.value)} (${pct.toFixed(0)}%)`, margin + 380, y)
+      y += 18
+      if (y > 720) { doc.addPage(); y = 50 }
+    }
+  }
+  y += 10
+
+  // Account Balances
+  if (y > 600) { doc.addPage(); y = 50 }
+  doc.setFontSize(13)
+  doc.setFont(undefined, 'bold')
+  doc.setTextColor(0)
+  doc.text('Account Balances (current)', margin, y)
+  y += 18
+
+  doc.setFontSize(9)
+  for (const acc of accounts) {
+    const balance = getAccountBalance(transactions, acc.id)
+    doc.setFillColor(...hexToRgb(acc.color))
+    doc.circle(margin + 6, y - 4, 4, 'F')
+    doc.setTextColor(50)
+    doc.setFont(undefined, 'normal')
+    doc.text(acc.name, margin + 16, y)
+    doc.setFont(undefined, 'bold')
+    doc.setTextColor(balance >= 0 ? 0 : 244)
+    doc.text(rupee(balance), margin + 350, y)
+    y += 16
+    if (y > 720) { doc.addPage(); y = 50 }
+  }
+  y += 10
+
+  // Top expenses
+  if (y > 600) { doc.addPage(); y = 50 }
+  doc.setFontSize(13)
+  doc.setFont(undefined, 'bold')
+  doc.setTextColor(0)
+  doc.text('Top 10 Expenses', margin, y)
+  y += 18
+
+  const topExp = [...monthTxs.filter(t => t.type === 'expense')]
+    .sort((a, b) => b.amount - a.amount).slice(0, 10)
+
+  doc.setFontSize(9)
+  if (topExp.length === 0) {
+    doc.setTextColor(150)
+    doc.text('No expenses', margin, y)
+  } else {
+    for (const [i, tx] of topExp.entries()) {
+      const cat = categories.find(c => c.id === tx.categoryId)
+      doc.setTextColor(150)
+      doc.text(`#${i + 1}`, margin, y)
+      doc.setTextColor(50)
+      doc.text(tx.name.slice(0, 40), margin + 22, y)
+      doc.setTextColor(120)
+      doc.text(cat?.name || '—', margin + 250, y)
+      doc.setFont(undefined, 'bold')
+      doc.setTextColor(244, 63, 94)
+      doc.text(rupee(tx.amount), margin + 380, y)
+      doc.setFont(undefined, 'normal')
+      y += 14
+      if (y > 720) { doc.addPage(); y = 50 }
+    }
+  }
+
+  // Footer on every page
+  const pageCount = doc.internal.getNumberOfPages()
+  for (let p = 1; p <= pageCount; p++) {
+    doc.setPage(p)
+    doc.setFontSize(8)
+    doc.setTextColor(150)
+    doc.text(`Page ${p} of ${pageCount}`, pageW / 2, 820, { align: 'center' })
+    doc.text('Generated by Income Tracker', margin, 820)
+  }
+
+  return doc
+}
+
+function drawSummaryBox(doc, x, y, w, h, label, value, rgb) {
+  doc.setFillColor(...rgb, 0.1)
+  doc.setDrawColor(...rgb)
+  doc.roundedRect(x, y, w, h, 6, 6, 'FD')
+  doc.setFontSize(8)
+  doc.setTextColor(...rgb)
+  doc.setFont(undefined, 'bold')
+  doc.text(label, x + 10, y + 16)
+  doc.setFontSize(13)
+  doc.setTextColor(20)
+  doc.text(value, x + 10, y + 42)
+}
+
+function hexToRgb(hex) {
+  const m = hex.replace('#', '').match(/.{2}/g)
+  return m ? [parseInt(m[0], 16), parseInt(m[1], 16), parseInt(m[2], 16)] : [100, 100, 100]
+}

@@ -3,7 +3,7 @@ import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts'
-import { TrendingUp, TrendingDown, Wallet, Landmark, ArrowUpRight, ArrowDownRight, ChevronLeft, ChevronRight, Pencil, Trash2, ArrowLeftRight } from 'lucide-react'
+import { TrendingUp, TrendingDown, Wallet, Landmark, ArrowUpRight, ArrowDownRight, ChevronLeft, ChevronRight, Pencil, Trash2, ArrowLeftRight, FileDown } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import {
   formatCurrency, formatCompact, formatDate, getCurrentMonthKey, getMonthlyTotals,
@@ -13,6 +13,7 @@ import TransactionRow from './TransactionRow'
 import AddTransactionModal from './AddTransactionModal'
 import ConfirmDialog from './ConfirmDialog'
 import NetWorthHistoryModal from './NetWorthHistoryModal'
+import { generateMonthlyReport } from '../utils/pdfReport'
 
 function SummaryCard({ label, value, sub, icon: Icon, color, trend, valueColor, onClick }) {
   return (
@@ -67,7 +68,13 @@ function InsightCard({ icon, title, value, sub, highlight }) {
 }
 
 export default function Dashboard() {
-  const { transactions, categories, accounts, budgets, deleteTransaction } = useApp()
+  const { transactions, categories, accounts, budgets, investments, deleteTransaction } = useApp()
+
+  function downloadReport() {
+    const doc = generateMonthlyReport({ monthKey: selectedMonth, transactions, categories, accounts, investments })
+    doc.save(`income-tracker-${selectedMonth}.pdf`)
+  }
+
   const [editTx, setEditTx] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(null)
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthKey())
@@ -212,6 +219,10 @@ export default function Dashboard() {
           <button onClick={() => shiftMonth(1)} disabled={isCurrentMonth}
             className="p-2 rounded-lg bg-bg-card border border-line-subtle text-gray-400 hover:text-white hover:border-line transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
             <ChevronRight size={15} />
+          </button>
+          <button onClick={downloadReport} title="Download PDF report"
+            className="ml-2 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-500/10 border border-violet-500/30 text-violet-300 hover:bg-violet-500/20 text-xs font-medium transition-colors">
+            <FileDown size={13} /> <span className="hidden sm:inline">PDF</span>
           </button>
         </div>
       </div>

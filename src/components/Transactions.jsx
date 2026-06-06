@@ -1,11 +1,12 @@
 import { useState, useMemo, useCallback } from 'react'
-import { Search, SlidersHorizontal, ChevronUp, ChevronDown, X, Download, Upload, Trash2, Calendar, Pencil, Copy } from 'lucide-react'
+import { Search, SlidersHorizontal, ChevronUp, ChevronDown, X, Download, Upload, Trash2, Calendar, Pencil, Copy, FileText } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { useToast } from '../context/ToastContext'
 import { exportToCSV, parseCSV, generateId, formatCurrency, formatDate } from '../utils/helpers'
 import TransactionRow from './TransactionRow'
 import AddTransactionModal from './AddTransactionModal'
 import ConfirmDialog from './ConfirmDialog'
+import BankImportModal from './BankImportModal'
 
 const PAGE_SIZE = 20
 
@@ -50,6 +51,7 @@ export default function Transactions({ onAdd }) {
   const [confirmDelete, setConfirmDelete] = useState(null)
   const [confirmBulk, setConfirmBulk] = useState(false)
   const [selected, setSelected] = useState(new Set())
+  const [showBankImport, setShowBankImport] = useState(false)
 
   const months = useMemo(() => {
     const set = new Set(transactions.map(t => t.date.slice(0, 7)))
@@ -200,6 +202,7 @@ export default function Transactions({ onAdd }) {
   return (
     <div className="space-y-4 animate-in pb-20">
       {editTx && <AddTransactionModal editTx={editTx} onClose={() => setEditTx(null)} />}
+      {showBankImport && <BankImportModal onClose={() => setShowBankImport(false)} />}
       {confirmDelete && (
         <ConfirmDialog title="Delete Transaction" message="This action cannot be undone."
           onConfirm={confirmDel} onCancel={() => setConfirmDelete(null)} />
@@ -233,11 +236,14 @@ export default function Transactions({ onAdd }) {
           <span className="hidden sm:inline">Filters</span>
           {hasFilters && <span className="w-1.5 h-1.5 bg-violet-400 rounded-full" />}
         </button>
+        <button onClick={() => setShowBankImport(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-violet-500/30 bg-violet-500/10 text-violet-300 hover:bg-violet-500/15 text-sm transition-colors" title="Import bank PDF">
+          <FileText size={14} /> <span className="hidden sm:inline">Bank PDF</span>
+        </button>
         <button onClick={handleExport} className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-line-subtle bg-bg-card text-gray-400 hover:text-gray-200 text-sm transition-colors" title="Export CSV">
           <Download size={14} /> <span className="hidden sm:inline">Export</span>
         </button>
         <button onClick={handleImport} className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-line-subtle bg-bg-card text-gray-400 hover:text-gray-200 text-sm transition-colors" title="Import CSV">
-          <Upload size={14} /> <span className="hidden sm:inline">Import</span>
+          <Upload size={14} /> <span className="hidden sm:inline">CSV</span>
         </button>
         <button onClick={onAdd} className="btn-primary px-4 py-2 text-white text-sm font-medium rounded-lg">
           + Add

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, ArrowLeftRight } from 'lucide-react'
+import { X, ArrowLeftRight, Users, Calculator } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { generateId } from '../utils/helpers'
 import { labelCls } from '../utils/styles'
@@ -28,7 +28,27 @@ export default function AddTransactionModal({ onClose, editTx, defaultType }) {
   const [error, setError] = useState('')
   const [errorField, setErrorField] = useState('')
 
+  // Split expense state
+  const [showSplit, setShowSplit] = useState(false)
+  const [splitTotal, setSplitTotal] = useState('')
+  const [splitPeople, setSplitPeople] = useState('2')
+  const [splitMode, setSplitMode] = useState('equal')   // 'equal' | 'custom'
+  const [splitMyShare, setSplitMyShare] = useState('')
+
   function fail(msg, field = '') { setError(msg); setErrorField(field) }
+
+  // When split values change, update the amount field
+  useEffect(() => {
+    if (!showSplit) return
+    if (splitMode === 'equal') {
+      const total = Number(splitTotal), people = Number(splitPeople) || 1
+      if (total > 0 && people > 0) {
+        setAmount(String(Math.round((total / people) * 100) / 100))
+      }
+    } else {
+      setAmount(splitMyShare)
+    }
+  }, [showSplit, splitMode, splitTotal, splitPeople, splitMyShare])
 
   // Transfer-specific — resolve from/to regardless of which leg was clicked for edit
   const [fromAccountId, setFromAccountId] = useState(() => {
@@ -87,10 +107,18 @@ export default function AddTransactionModal({ onClose, editTx, defaultType }) {
     if (!accountId) return fail('Please select an account.', 'account')
     if (!date) return fail('Please select a date.', 'date')
 
+    let finalNotes = notes.trim()
+    if (showSplit && !editTx) {
+      const splitNote = splitMode === 'equal' && splitTotal
+        ? `Split — ₹${splitTotal} total, ${splitPeople} ways`
+        : 'Split — partial share'
+      finalNotes = finalNotes ? `${splitNote} · ${finalNotes}` : splitNote
+    }
+
     const tx = {
       id: editTx?.id || generateId(),
       type, name: name.trim(), amount: Number(amount),
-      categoryId, accountId, date, notes: notes.trim(),
+      categoryId, accountId, date, notes: finalNotes,
     }
 
     if (editTx) updateTransaction(editTx.id, tx)
@@ -193,10 +221,71 @@ export default function AddTransactionModal({ onClose, editTx, defaultType }) {
               </div>
 
               <div>
-                <label className={labelCls}>Amount (₹)</label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className={labelCls.replace(' mb-1.5', '')}>Amount (₹)</label>
+                  {type === 'expense' && !editTx && (
+                    <button type="button" onClick={() => setShowSplit(s => !s)}
+                      className={`flex items-center gap-1 text-[11px] font-medium transition-colors ${
+                        showSplit ? 'text-violet-300' : 'text-gray-500 hover:text-violet-400'
+                      }`}>
+                      <Users size={11} /> {showSplit ? 'Hide split' : 'Split with others'}
+                    </button>
+                  )}
+                </div>
                 <input className={fieldCls(errorField, 'amount')} type="number" min="0" step="0.01" placeholder="0"
-                  value={amount} onChange={e => setAmount(e.target.value)} />
+                  value={amount} onChange={e => setAmount(e.target.value)} readOnly={showSplit} />
               </div>
+
+              {showSplit && (
+                <div className="p-3 bg-violet-500/5 rounded-lg border border-violet-500/20 space-y-3 animate-in">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-violet-300">
+                    <Calculator size={12} /> Split calculator
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { id: 'equal', label: 'Equal split' },
+                      { id: 'custom', label: 'My share' },
+                    ].map(m => (
+                      <button key={m.id} type="button" onClick={() => setSplitMode(m.id)}
+                        className={`py-1.5 rounded-md text-xs font-medium transition-colors ${
+                          splitMode === m.id ? 'bg-violet-500/20 text-violet-300 border border-violet-500/40' : 'bg-bg-input text-gray-400 border border-line-subtle'
+                        }`}>
+                        {m.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {splitMode === 'equal' ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[10px] uppercase tracking-wider text-gray-500 mb-1">Total bill (₹)</label>
+                        <input className={inputCls + ' py-1.5'} type="number" min="0" step="0.01" placeholder="0"
+                          value={splitTotal} onChange={e => setSplitTotal(e.target.value)} />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] uppercase tracking-wider text-gray-500 mb-1">Split between</label>
+                        <input className={inputCls + ' py-1.5'} type="number" min="1" max="50"
+                          value={splitPeople} onChange={e => setSplitPeople(e.target.value)} />
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-[10px] uppercase tracking-wider text-gray-500 mb-1">Your share (₹)</label>
+                      <input className={inputCls + ' py-1.5'} type="number" min="0" step="0.01" placeholder="0"
+                        value={splitMyShare} onChange={e => setSplitMyShare(e.target.value)} />
+                    </div>
+                  )}
+
+                  <div className="text-[11px] text-violet-300">
+                    Your expense: <span className="font-bold">₹{Number(amount).toLocaleString('en-IN', { maximumFractionDigits: 2 }) || 0}</span>
+                    {splitMode === 'equal' && splitTotal && (
+                      <span className="text-gray-500 ml-2">
+                        of ₹{Number(splitTotal).toLocaleString('en-IN')} total
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
