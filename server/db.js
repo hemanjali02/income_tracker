@@ -138,7 +138,8 @@ const receivableSchema = new mongoose.Schema({
   status:              { type: String, default: 'pending' }, // pending | received | written-off
   receivedDate:        String,
   receivedAccountId:   String,
-  linkedTransactionId: String,
+  linkedTransactionId: String,   // income tx created when received
+  sourceTransactionId: String,   // expense tx this was split from (if any)
   createdAt:           { type: String, default: () => new Date().toISOString() },
 })
 export const Receivable = mongoose.model('Receivable', receivableSchema)

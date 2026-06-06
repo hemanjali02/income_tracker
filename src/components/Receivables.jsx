@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Plus, Pencil, Trash2, X, Check, HandCoins, Clock, CheckCircle2, XCircle, Calendar, User } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, Check, HandCoins, Clock, CheckCircle2, XCircle, Calendar, User, Users } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { generateId, formatCurrency, formatDate, formatDateFull } from '../utils/helpers'
 import { inputCls, inputSmCls, labelCls } from '../utils/styles'
@@ -283,6 +283,11 @@ export default function Receivables() {
                       <span className={`text-sm font-semibold ${isWrittenOff ? 'text-gray-500 line-through' : 'text-white'}`}>
                         {r.name}
                       </span>
+                      {r.sourceTransactionId && (
+                        <span className="text-[10px] font-medium text-violet-300 bg-violet-500/10 border border-violet-500/20 px-1.5 py-0.5 rounded inline-flex items-center gap-1">
+                          <Users size={9} /> Split
+                        </span>
+                      )}
                       {isOverdue && (
                         <span className="text-[10px] font-bold uppercase tracking-wider text-rose-300 bg-rose-500/15 border border-rose-500/30 px-1.5 py-0.5 rounded">
                           Overdue
@@ -310,7 +315,7 @@ export default function Receivables() {
                           <CheckCircle2 size={11} /> Received {formatDate(r.receivedDate)}
                         </span>
                       )}
-                      {r.notes && <span className="truncate max-w-[200px]">{r.notes}</span>}
+                      {r.notes && <span className="truncate max-w-[260px]">{r.notes}</span>}
                     </div>
                   </div>
 
