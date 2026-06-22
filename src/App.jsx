@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { ToastProvider } from './context/ToastContext'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { AppProvider } from './context/AppContext'
@@ -75,26 +76,39 @@ function AppShell() {
             <MobileMenuButton onClick={() => setMobileMenu(true)} />
             <h2 className="text-sm font-semibold text-gray-300 capitalize">{view}</h2>
           </div>
-          <button
+          <motion.button
+            whileTap={{ scale: 0.96 }}
+            whileHover={{ y: -1 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 22 }}
             onClick={() => openAdd()}
             className="btn-primary flex items-center gap-2 px-3 sm:px-4 py-2 text-white text-sm font-semibold rounded-lg shadow-lg shadow-violet-900/30"
           >
             <span className="text-lg leading-none">+</span>
             <span className="hidden sm:inline">Add Transaction</span>
-          </button>
+          </motion.button>
         </div>
 
         <div className="px-4 sm:px-8 py-6">
-          {view === 'dashboard' && <Dashboard />}
-          {view === 'analysis' && <Analysis />}
-          {view === 'transactions' && <Transactions onAdd={() => openAdd()} />}
-          {view === 'recurring' && <Recurring />}
-          {view === 'receivables' && <Receivables />}
-          {view === 'investments' && <Investments />}
-          {view === 'budgets' && <BudgetView />}
-          {view === 'goals' && <Goals />}
-          {view === 'categories' && <CategoryManager />}
-          {view === 'accounts' && <AccountManager onTransfer={() => openAdd('transfer')} />}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={view}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
+            >
+              {view === 'dashboard' && <Dashboard />}
+              {view === 'analysis' && <Analysis />}
+              {view === 'transactions' && <Transactions onAdd={() => openAdd()} />}
+              {view === 'recurring' && <Recurring />}
+              {view === 'receivables' && <Receivables />}
+              {view === 'investments' && <Investments />}
+              {view === 'budgets' && <BudgetView />}
+              {view === 'goals' && <Goals />}
+              {view === 'categories' && <CategoryManager />}
+              {view === 'accounts' && <AccountManager onTransfer={() => openAdd('transfer')} />}
+            </motion.div>
+          </AnimatePresence>
         </div>
       </main>
 

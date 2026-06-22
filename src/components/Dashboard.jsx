@@ -3,6 +3,7 @@ import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts'
+import { motion } from 'framer-motion'
 import { TrendingUp, TrendingDown, Wallet, Landmark, ArrowUpRight, ArrowDownRight, ChevronLeft, ChevronRight, Pencil, Trash2, ArrowLeftRight, FileDown } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import {
@@ -17,7 +18,10 @@ import { generateMonthlyReport } from '../utils/pdfReport'
 
 function SummaryCard({ label, value, sub, icon: Icon, color, trend, valueColor, onClick }) {
   return (
-    <div
+    <motion.div
+      whileHover={onClick ? { y: -3 } : undefined}
+      whileTap={onClick ? { scale: 0.98 } : undefined}
+      transition={{ type: 'spring', stiffness: 300, damping: 22 }}
       onClick={onClick}
       className={`bg-bg-card border border-line-subtle rounded-xl p-4 sm:p-5 hover:border-line transition-colors ${onClick ? 'cursor-pointer' : ''}`}
     >
@@ -36,7 +40,7 @@ function SummaryCard({ label, value, sub, icon: Icon, color, trend, valueColor, 
       <div className={`text-lg sm:text-xl font-bold mb-1 ${valueColor || 'text-white'}`}>{value}</div>
       <div className="text-xs text-gray-500">{label}</div>
       {sub && <div className="text-xs text-gray-600 mt-0.5">{sub}</div>}
-    </div>
+    </motion.div>
   )
 }
 

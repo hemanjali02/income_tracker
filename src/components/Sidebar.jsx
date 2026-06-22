@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { LayoutDashboard, ArrowLeftRight, Tag, Wallet, TrendingUp, Target, Menu, X, Database, HardDrive, LogOut, Briefcase, KeyRound, Eye, EyeOff, Repeat, Flag, HandCoins, LineChart } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../context/AuthContext'
+import Modal from './Modal'
 
 const navSections = [
   {
@@ -67,20 +69,8 @@ function ChangePasswordModal({ onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
-      <div className="relative glass rounded-2xl w-full max-w-sm shadow-2xl animate-in" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-line">
-          <div className="flex items-center gap-2">
-            <KeyRound size={15} className="text-violet-400" />
-            <h2 className="text-white font-semibold text-sm">Change Password</h2>
-          </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
-            <X size={16} />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="px-5 py-4 space-y-3">
+    <Modal onClose={onClose} title="Change Password" icon={KeyRound} maxWidth="sm">
+      <form onSubmit={handleSubmit} className="px-5 py-4 space-y-3">
           {/* Current password */}
           <div>
             <label className="block text-xs text-gray-400 mb-1.5">Current Password</label>
@@ -145,8 +135,7 @@ function ChangePasswordModal({ onClose }) {
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -163,12 +152,21 @@ export default function Sidebar({ activeView, onNavigate, mobileOpen, onCloseMob
     <>
       {showChangePwd && <ChangePasswordModal onClose={() => setShowChangePwd(false)} />}
 
-      {mobileOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 lg:hidden" onClick={onCloseMobile} />
-      )}
+      <AnimatePresence>
+        {mobileOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            onClick={onCloseMobile}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 lg:hidden"
+          />
+        )}
+      </AnimatePresence>
 
       <aside className={`fixed top-0 left-0 h-screen w-56 bg-bg-card border-r border-line-subtle flex flex-col z-40
-        transition-transform duration-200 lg:translate-x-0 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] lg:translate-x-0 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="px-5 py-5 border-b border-line-subtle flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-900/30">

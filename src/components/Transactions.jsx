@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Search, SlidersHorizontal, ChevronUp, ChevronDown, X, Download, Upload, Trash2, Calendar, Pencil, Copy, FileText } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { useToast } from '../context/ToastContext'
@@ -480,19 +481,27 @@ export default function Transactions({ onAdd }) {
       </div>
 
       {/* Floating bulk action bar */}
-      {someSelected && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 glass rounded-xl shadow-2xl px-3 sm:px-4 py-3 flex items-center gap-3 sm:gap-4 animate-in max-w-[calc(100vw-2rem)]">
-          <span className="text-sm text-white font-medium">{selected.size} selected</span>
-          <button onClick={clearSelection} className="text-xs text-gray-400 hover:text-white transition-colors">
-            Clear
-          </button>
-          <div className="w-px h-5 bg-line" />
-          <button onClick={handleBulkDelete}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-500/15 border border-rose-500/30 text-rose-300 hover:bg-rose-500/25 text-xs font-medium transition-colors">
-            <Trash2 size={13} /> Delete
-          </button>
-        </div>
-      )}
+      <AnimatePresence>
+        {someSelected && (
+          <motion.div
+            initial={{ y: 80, opacity: 0, scale: 0.92 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: 80, opacity: 0, scale: 0.92 }}
+            transition={{ type: 'spring', stiffness: 320, damping: 26 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 glass rounded-xl shadow-2xl px-3 sm:px-4 py-3 flex items-center gap-3 sm:gap-4 max-w-[calc(100vw-2rem)]"
+          >
+            <span className="text-sm text-white font-medium">{selected.size} selected</span>
+            <button onClick={clearSelection} className="text-xs text-gray-400 hover:text-white transition-colors">
+              Clear
+            </button>
+            <div className="w-px h-5 bg-line" />
+            <motion.button whileTap={{ scale: 0.95 }} onClick={handleBulkDelete}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-500/15 border border-rose-500/30 text-rose-300 hover:bg-rose-500/25 text-xs font-medium transition-colors">
+              <Trash2 size={13} /> Delete
+            </motion.button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

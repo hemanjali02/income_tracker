@@ -1,9 +1,10 @@
 import { useState, useMemo } from 'react'
-import { Plus, Pencil, Trash2, X, Repeat, Pause, Play, Calendar, Check, AlertCircle } from 'lucide-react'
+import { Plus, Pencil, Trash2, Repeat, Pause, Play, Calendar, Check, AlertCircle } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { generateId, formatCurrency, formatDate, getNextDueDate } from '../utils/helpers'
 import { inputCls, labelCls } from '../utils/styles'
 import ConfirmDialog from './ConfirmDialog'
+import Modal from './Modal'
 
 function RecurringForm({ initial, onSave, onCancel }) {
   const { categories, accounts } = useApp()
@@ -41,14 +42,8 @@ function RecurringForm({ initial, onSave, onCancel }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onCancel}>
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
-      <form onSubmit={submit} className="relative glass rounded-2xl w-full max-w-md shadow-2xl animate-in" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-line">
-          <h2 className="text-white font-semibold text-base">{initial ? 'Edit Recurring Item' : 'New Recurring Item'}</h2>
-          <button type="button" onClick={onCancel} className="text-gray-400 hover:text-white"><X size={18} /></button>
-        </div>
-        <div className="px-6 py-5 space-y-4">
+    <Modal onClose={onCancel} title={initial ? 'Edit Recurring Item' : 'New Recurring Item'} maxWidth="md">
+      <form onSubmit={submit} className="px-6 py-5 space-y-4">
           <div>
             <label className={labelCls}>Type</label>
             <div className="flex gap-2">
@@ -144,13 +139,12 @@ function RecurringForm({ initial, onSave, onCancel }) {
             <input className={inputCls} value={notes} onChange={e => setNotes(e.target.value)} />
           </div>
 
-          {error && <p className="text-rose-400 text-xs">{error}</p>}
-          <button type="submit" className="btn-primary w-full py-2.5 text-white font-semibold rounded-lg text-sm">
-            {initial ? 'Save Changes' : 'Create Recurring'}
-          </button>
-        </div>
+        {error && <p className="text-rose-400 text-xs">{error}</p>}
+        <button type="submit" className="btn-primary w-full py-2.5 text-white font-semibold rounded-lg text-sm">
+          {initial ? 'Save Changes' : 'Create Recurring'}
+        </button>
       </form>
-    </div>
+    </Modal>
   )
 }
 

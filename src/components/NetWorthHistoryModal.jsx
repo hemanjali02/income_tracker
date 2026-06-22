@@ -1,8 +1,9 @@
 import { useMemo, useEffect } from 'react'
-import { X, TrendingUp, TrendingDown } from 'lucide-react'
+import { TrendingUp, TrendingDown } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { formatCurrency, formatCompact, getAccountBalance } from '../utils/helpers'
 import { useApp } from '../context/AppContext'
+import Modal from './Modal'
 
 export default function NetWorthHistoryModal({ onClose }) {
   const { transactions, accounts, investments, netWorthSnapshots, addNetWorthSnapshot } = useApp()
@@ -57,26 +58,13 @@ export default function NetWorthHistoryModal({ onClose }) {
   const change = lastSnap && firstSnap ? lastSnap.netWorth - firstSnap.netWorth : 0
   const changePct = firstSnap?.netWorth ? (change / Math.abs(firstSnap.netWorth)) * 100 : 0
 
-  useEffect(() => {
-    function onKey(e) { if (e.key === 'Escape') onClose() }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
-      <div className="relative glass rounded-2xl w-full max-w-2xl shadow-2xl animate-in" onClick={e => e.stopPropagation()}>
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-line">
-          <div>
-            <h2 className="text-white font-semibold text-base">Net Worth History</h2>
-            <p className="text-xs text-gray-500 mt-0.5">Monthly snapshots · {chartData.length} data point{chartData.length !== 1 ? 's' : ''}</p>
-          </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
-            <X size={18} />
-          </button>
-        </div>
+    <Modal
+      onClose={onClose}
+      title="Net Worth History"
+      subtitle={`Monthly snapshots · ${chartData.length} data point${chartData.length !== 1 ? 's' : ''}`}
+      maxWidth="2xl"
+    >
 
         {/* Current value summary */}
         <div className="px-6 py-5 border-b border-line-subtle">
@@ -141,7 +129,6 @@ export default function NetWorthHistoryModal({ onClose }) {
             Snapshots are taken automatically the first time you open the dashboard each month.
           </div>
         )}
-      </div>
-    </div>
+    </Modal>
   )
 }

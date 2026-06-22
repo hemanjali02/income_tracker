@@ -1,3 +1,4 @@
+import { motion, AnimatePresence } from 'framer-motion'
 import { X, CheckCircle, AlertCircle, Info } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 
@@ -15,33 +16,39 @@ const colors = {
 
 export default function Toasts() {
   const { toasts, removeToast } = useToast()
-  if (!toasts.length) return null
 
   return (
-    <div className="fixed bottom-6 right-4 sm:right-6 z-[100] flex flex-col gap-2 max-w-sm w-[calc(100vw-2rem)] sm:w-auto">
-      {toasts.map(t => {
-        const Icon = icons[t.type] || icons.info
-        return (
-          <div
-            key={t.id}
-            className={`flex items-center gap-3 px-4 py-3 rounded-xl border shadow-2xl backdrop-blur-sm animate-in ${colors[t.type] || colors.info}`}
-          >
-            <Icon size={16} className="flex-shrink-0" />
-            <span className="text-sm font-medium flex-1">{t.message}</span>
-            {t.action && (
-              <button
-                onClick={() => { t.action.onClick(); removeToast(t.id) }}
-                className="text-xs font-semibold underline underline-offset-2 opacity-80 hover:opacity-100 transition-opacity flex-shrink-0"
-              >
-                {t.action.label}
+    <div className="fixed bottom-6 right-4 sm:right-6 z-[100] flex flex-col gap-2 max-w-sm w-[calc(100vw-2rem)] sm:w-auto pointer-events-none">
+      <AnimatePresence initial={false}>
+        {toasts.map(t => {
+          const Icon = icons[t.type] || icons.info
+          return (
+            <motion.div
+              key={t.id}
+              layout
+              initial={{ opacity: 0, x: 40, scale: 0.95 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, x: 40, scale: 0.95 }}
+              transition={{ type: 'spring', stiffness: 320, damping: 26 }}
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl border shadow-2xl backdrop-blur-sm pointer-events-auto ${colors[t.type] || colors.info}`}
+            >
+              <Icon size={16} className="flex-shrink-0" />
+              <span className="text-sm font-medium flex-1">{t.message}</span>
+              {t.action && (
+                <button
+                  onClick={() => { t.action.onClick(); removeToast(t.id) }}
+                  className="text-xs font-semibold underline underline-offset-2 opacity-80 hover:opacity-100 transition-opacity flex-shrink-0"
+                >
+                  {t.action.label}
+                </button>
+              )}
+              <button onClick={() => removeToast(t.id)} className="opacity-40 hover:opacity-100 transition-opacity flex-shrink-0">
+                <X size={14} />
               </button>
-            )}
-            <button onClick={() => removeToast(t.id)} className="opacity-40 hover:opacity-100 transition-opacity flex-shrink-0">
-              <X size={14} />
-            </button>
-          </div>
-        )
-      })}
+            </motion.div>
+          )
+        })}
+      </AnimatePresence>
     </div>
   )
 }

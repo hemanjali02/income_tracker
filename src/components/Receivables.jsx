@@ -4,6 +4,7 @@ import { useApp } from '../context/AppContext'
 import { generateId, formatCurrency, formatDate, formatDateFull } from '../utils/helpers'
 import { inputCls, inputSmCls, labelCls } from '../utils/styles'
 import ConfirmDialog from './ConfirmDialog'
+import Modal from './Modal'
 
 function ReceivableForm({ initial, onSave, onCancel }) {
   const [name, setName] = useState(initial?.name || '')
@@ -26,39 +27,30 @@ function ReceivableForm({ initial, onSave, onCancel }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onCancel}>
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
-      <form onSubmit={submit} className="relative glass rounded-2xl w-full max-w-md shadow-2xl animate-in" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-line">
-          <h2 className="text-white font-semibold text-base">{initial ? 'Edit Receivable' : 'Add Receivable'}</h2>
-          <button type="button" onClick={onCancel} className="text-gray-400 hover:text-white">
-            <X size={18} />
-          </button>
+    <Modal onClose={onCancel} title={initial ? 'Edit Receivable' : 'Add Receivable'} maxWidth="md">
+      <form onSubmit={submit} className="px-6 py-5 space-y-4">
+        <div>
+          <label className={labelCls}>Who owes you?</label>
+          <input autoFocus className={inputCls} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Rahul, Office, Refund" />
         </div>
-        <div className="px-6 py-5 space-y-4">
-          <div>
-            <label className={labelCls}>Who owes you?</label>
-            <input autoFocus className={inputCls} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Rahul, Office, Refund" />
-          </div>
-          <div>
-            <label className={labelCls}>Amount (₹)</label>
-            <input className={inputCls} type="number" min="0" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0" />
-          </div>
-          <div>
-            <label className={labelCls}>Due Date <span className="text-gray-600">(optional)</span></label>
-            <input className={inputCls} type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
-          </div>
-          <div>
-            <label className={labelCls}>Notes <span className="text-gray-600">(optional)</span></label>
-            <input className={inputCls} placeholder="What for?" value={notes} onChange={e => setNotes(e.target.value)} />
-          </div>
-          {error && <p className="text-rose-400 text-xs">{error}</p>}
-          <button type="submit" className="btn-primary w-full py-2.5 text-white font-semibold rounded-lg text-sm">
-            {initial ? 'Save Changes' : 'Add Receivable'}
-          </button>
+        <div>
+          <label className={labelCls}>Amount (₹)</label>
+          <input className={inputCls} type="number" min="0" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0" />
         </div>
+        <div>
+          <label className={labelCls}>Due Date <span className="text-gray-600">(optional)</span></label>
+          <input className={inputCls} type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+        </div>
+        <div>
+          <label className={labelCls}>Notes <span className="text-gray-600">(optional)</span></label>
+          <input className={inputCls} placeholder="What for?" value={notes} onChange={e => setNotes(e.target.value)} />
+        </div>
+        {error && <p className="text-rose-400 text-xs">{error}</p>}
+        <button type="submit" className="btn-primary w-full py-2.5 text-white font-semibold rounded-lg text-sm">
+          {initial ? 'Save Changes' : 'Add Receivable'}
+        </button>
       </form>
-    </div>
+    </Modal>
   )
 }
 
@@ -79,43 +71,34 @@ function MarkReceivedModal({ receivable, onConfirm, onCancel }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onCancel}>
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
-      <form onSubmit={submit} className="relative glass rounded-2xl w-full max-w-sm shadow-2xl animate-in" onClick={e => e.stopPropagation()}>
-        <div className="px-6 py-4 border-b border-line">
-          <h2 className="text-white font-semibold text-base">Mark Received</h2>
-          <p className="text-xs text-gray-500 mt-1">
-            {formatCurrency(receivable.amount)} from {receivable.name}
-          </p>
+    <Modal onClose={onCancel} title="Mark Received" subtitle={`${formatCurrency(receivable.amount)} from ${receivable.name}`} maxWidth="sm">
+      <form onSubmit={submit} className="px-6 py-5 space-y-4">
+        <div>
+          <label className={labelCls}>Received into account</label>
+          <select className={inputCls} value={accountId} onChange={e => setAccountId(e.target.value)}>
+            {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+          </select>
         </div>
-        <div className="px-6 py-5 space-y-4">
-          <div>
-            <label className={labelCls}>Received into account</label>
-            <select className={inputCls} value={accountId} onChange={e => setAccountId(e.target.value)}>
-              {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className={labelCls}>Category</label>
-            <select className={inputCls} value={categoryId} onChange={e => setCategoryId(e.target.value)}>
-              {incomeCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-          </div>
-          <p className="text-[11px] text-gray-500 bg-bg-elevated rounded-lg px-3 py-2 border border-line-subtle">
-            ✓ A new income transaction will be created in this account
-          </p>
-          {error && <p className="text-rose-400 text-xs">{error}</p>}
-          <div className="flex gap-2">
-            <button type="submit" className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold rounded-lg transition-colors">
-              Confirm Receipt
-            </button>
-            <button type="button" onClick={onCancel} className="px-4 text-gray-400 hover:text-white text-sm">
-              Cancel
-            </button>
-          </div>
+        <div>
+          <label className={labelCls}>Category</label>
+          <select className={inputCls} value={categoryId} onChange={e => setCategoryId(e.target.value)}>
+            {incomeCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </div>
+        <p className="text-[11px] text-gray-500 bg-bg-elevated rounded-lg px-3 py-2 border border-line-subtle">
+          ✓ A new income transaction will be created in this account
+        </p>
+        {error && <p className="text-rose-400 text-xs">{error}</p>}
+        <div className="flex gap-2">
+          <button type="submit" className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold rounded-lg transition-colors">
+            Confirm Receipt
+          </button>
+          <button type="button" onClick={onCancel} className="px-4 text-gray-400 hover:text-white text-sm">
+            Cancel
+          </button>
         </div>
       </form>
-    </div>
+    </Modal>
   )
 }
 

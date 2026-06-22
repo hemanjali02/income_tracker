@@ -1,10 +1,11 @@
 import { useState, useRef } from 'react'
-import { X, Upload, FileText, Check, AlertCircle, ArrowUpRight, ArrowDownRight, Loader2 } from 'lucide-react'
+import { Upload, FileText, Check, AlertCircle, ArrowUpRight, ArrowDownRight, Loader2 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { useToast } from '../context/ToastContext'
 import { generateId, formatCurrency, formatDate } from '../utils/helpers'
 import { inputCls, labelCls } from '../utils/styles'
 import { parseBankStatement, suggestCategory } from '../utils/pdfParser'
+import Modal from './Modal'
 
 export default function BankImportModal({ onClose }) {
   const { categories, accounts, addTransaction } = useApp()
@@ -105,27 +106,13 @@ export default function BankImportModal({ onClose }) {
     onClose()
   }
 
+  const subtitle = stage === 'upload' ? 'Upload a PDF statement to extract transactions'
+    : stage === 'password' ? 'PDF is password-protected'
+    : stage === 'preview' ? `${parsed.length} transactions detected · ${selected.size} selected`
+    : 'Done'
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
-      <div className="relative glass rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl animate-in" onClick={e => e.stopPropagation()}>
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-line flex-shrink-0">
-          <div>
-            <h2 className="text-white font-semibold text-base flex items-center gap-2">
-              <FileText size={16} className="text-violet-400" /> Import Bank Statement
-            </h2>
-            <p className="text-xs text-gray-500 mt-0.5">
-              {stage === 'upload' ? 'Upload a PDF statement to extract transactions'
-                : stage === 'password' ? 'PDF is password-protected'
-                : stage === 'preview' ? `${parsed.length} transactions detected · ${selected.size} selected`
-                : 'Done'}
-            </p>
-          </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-white">
-            <X size={18} />
-          </button>
-        </div>
+    <Modal onClose={onClose} title="Import Bank Statement" subtitle={subtitle} icon={FileText} maxWidth="3xl">
 
         {/* Upload stage */}
         {stage === 'upload' && (
@@ -284,7 +271,6 @@ export default function BankImportModal({ onClose }) {
             </div>
           </>
         )}
-      </div>
-    </div>
+    </Modal>
   )
 }
