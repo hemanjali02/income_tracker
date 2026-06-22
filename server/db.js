@@ -62,10 +62,12 @@ const categorySchema = new mongoose.Schema({
 export const Category = mongoose.model('Category', categorySchema)
 
 const accountSchema = new mongoose.Schema({
-  id:     { type: String, required: true, unique: true },
-  userId: { type: String, required: true, index: true },
-  name:   String,
-  color:  String,
+  id:             { type: String, required: true, unique: true },
+  userId:         { type: String, required: true, index: true },
+  name:           String,
+  color:          String,
+  accountType:    String,             // bank | cash | wallet | credit
+  openingBalance: { type: Number, default: 0 },  // baseline added to balance calc
 })
 export const Account = mongoose.model('Account', accountSchema)
 

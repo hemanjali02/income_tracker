@@ -9,7 +9,7 @@ export default function NetWorthHistoryModal({ onClose }) {
 
   // Compute current net worth (live)
   const currentNetWorth = useMemo(() => {
-    const accountSum = accounts.reduce((s, a) => s + getAccountBalance(transactions, a.id), 0)
+    const accountSum = accounts.reduce((s, a) => s + getAccountBalance(transactions, a), 0)
     const investmentSum = investments.reduce((s, i) => s + (i.currentValue || 0), 0)
     return { accountSum, investmentSum, total: accountSum + investmentSum }
   }, [transactions, accounts, investments])

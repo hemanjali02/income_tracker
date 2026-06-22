@@ -28,12 +28,15 @@ function AccountForm({ initial, onSave, onCancel }) {
   const [name, setName] = useState(initial?.name || '')
   const [color, setColor] = useState(initial?.color || '#7c3aed')
   const [accountType, setAccountType] = useState(initial?.accountType || 'bank')
+  const [openingBalance, setOpeningBalance] = useState(initial ? String(initial.openingBalance || 0) : '')
   const [error, setError] = useState('')
 
   function submit(e) {
     e.preventDefault()
     if (!name.trim()) return setError('Name is required')
-    onSave({ name: name.trim(), color, accountType })
+    const opening = openingBalance === '' ? 0 : Number(openingBalance)
+    if (isNaN(opening)) return setError('Opening balance must be a number')
+    onSave({ name: name.trim(), color, accountType, openingBalance: opening })
   }
 
   return (
@@ -55,6 +58,14 @@ function AccountForm({ initial, onSave, onCancel }) {
             </button>
           ))}
         </div>
+      </div>
+      <div>
+        <label className={labelCls}>Opening Balance (₹) <span className="text-gray-600 font-normal">— current balance to start from</span></label>
+        <input className={inputSmCls} type="number" step="0.01" value={openingBalance}
+          onChange={e => setOpeningBalance(e.target.value)} placeholder="0" />
+        <p className="text-[11px] text-gray-500 mt-1">
+          Use this to bring in your existing balance without back-dating transactions. Negative values allowed (e.g. credit card debt).
+        </p>
       </div>
       <div>
         <label className={labelCls}>Color</label>
@@ -82,7 +93,7 @@ function AccountDetail({ acc, transactions, categories, accounts, onBack, onEdit
     [transactions, acc.id]
   )
 
-  const balance = getAccountBalance(transactions, acc.id)
+  const balance = getAccountBalance(transactions, acc)
   const income = accTxs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
   const expense = accTxs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
   const transfersIn = accTxs.filter(t => t.type === 'transfer' && t.transferDirection === 'in').reduce((s, t) => s + t.amount, 0)
@@ -126,6 +137,11 @@ function AccountDetail({ acc, transactions, categories, accounts, onBack, onEdit
           <div className={`text-xl font-bold ${balance >= 0 ? 'text-white' : 'text-rose-400'}`}>
             {balance < 0 && '−'}{formatCurrency(Math.abs(balance))}
           </div>
+          {(acc.openingBalance || 0) !== 0 && (
+            <div className="text-[10px] text-gray-600 mt-1">
+              incl. opening {formatCurrency(acc.openingBalance)}
+            </div>
+          )}
         </div>
         <div className="bg-bg-card border border-line-subtle rounded-xl p-4">
           <div className="text-xs text-gray-500 mb-1">Income</div>
@@ -303,7 +319,7 @@ export default function AccountManager({ onTransfer }) {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {accounts.map(acc => {
           const stats = getStats(acc.id)
-          const balance = getAccountBalance(transactions, acc.id)
+          const balance = getAccountBalance(transactions, acc)
           return (
             <div key={acc.id}>
               {editId === acc.id ? (

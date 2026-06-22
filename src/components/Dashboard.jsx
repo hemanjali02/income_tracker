@@ -106,7 +106,7 @@ export default function Dashboard() {
 
   // Total net worth across all accounts
   const totalNetWorth = useMemo(() =>
-    accounts.reduce((sum, acc) => sum + getAccountBalance(transactions, acc.id), 0),
+    accounts.reduce((sum, acc) => sum + getAccountBalance(transactions, acc), 0),
     [accounts, transactions]
   )
 
@@ -408,7 +408,7 @@ export default function Dashboard() {
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
             {accounts.map(acc => {
-              const balance = getAccountBalance(transactions, acc.id)
+              const balance = getAccountBalance(transactions, acc)
               return (
                 <div key={acc.id} className="bg-bg-elevated border border-line-subtle rounded-xl p-4">
                   <div className="flex items-center gap-2 mb-2">

@@ -100,9 +100,14 @@ export function getDailyTotals(transactions, monthKey) {
     .map(([day, vals]) => ({ day: parseInt(day), ...vals }))
 }
 
-export function getAccountBalance(transactions, accountId) {
-  return transactions
-    .filter(t => t.accountId === accountId)
+// Pass the account object to include opening balance, or just the ID for tx-only sum
+export function getAccountBalance(transactions, accountOrId, openingBalance = 0) {
+  const id = typeof accountOrId === 'object' && accountOrId !== null ? accountOrId.id : accountOrId
+  const opening = typeof accountOrId === 'object' && accountOrId !== null
+    ? (accountOrId.openingBalance || 0)
+    : openingBalance
+  return opening + transactions
+    .filter(t => t.accountId === id)
     .reduce((sum, t) => {
       if (t.type === 'income') return sum + t.amount
       if (t.type === 'expense') return sum - t.amount

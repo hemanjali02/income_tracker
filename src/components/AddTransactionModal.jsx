@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { X, ArrowLeftRight, Users } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { generateId } from '../utils/helpers'
@@ -15,6 +16,13 @@ function fieldCls(errorField, thisField) {
 
 export default function AddTransactionModal({ onClose, editTx, defaultType }) {
   const { categories, accounts, addTransaction, updateTransaction, addTransfer, updateTransfer, addReceivable } = useApp()
+
+  // Local visibility for exit animation
+  const [visible, setVisible] = useState(true)
+  function dismiss() {
+    setVisible(false)
+    setTimeout(onClose, 260)
+  }
 
   const isEditingTransfer = editTx?.type === 'transfer'
 
@@ -75,10 +83,11 @@ export default function AddTransactionModal({ onClose, editTx, defaultType }) {
   useEffect(() => { if (!editTx && type !== 'transfer') setCategoryId('') }, [type, editTx])
 
   useEffect(() => {
-    function onKey(e) { if (e.key === 'Escape') onClose() }
+    function onKey(e) { if (e.key === 'Escape') dismiss() }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   function handleSubmit(e) {
     e.preventDefault()
@@ -107,7 +116,7 @@ export default function AddTransactionModal({ onClose, editTx, defaultType }) {
           notes: notes.trim(),
         })
       }
-      onClose()
+      dismiss()
       return
     }
 
@@ -167,7 +176,7 @@ export default function AddTransactionModal({ onClose, editTx, defaultType }) {
       }
     }
 
-    onClose()
+    dismiss()
   }
 
   const typeButtons = [
@@ -177,17 +186,36 @@ export default function AddTransactionModal({ onClose, editTx, defaultType }) {
   ]
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
-      <div className="relative glass rounded-2xl w-full max-w-md shadow-2xl animate-in" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-line">
-          <h2 className="text-white font-semibold text-base">
-            {editTx ? (isEditingTransfer ? 'Edit Transfer' : 'Edit Transaction') : 'Add Transaction'}
-          </h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
-            <X size={18} />
-          </button>
-        </div>
+    <AnimatePresence>
+      {visible && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
+          {/* Backdrop */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            onClick={dismiss}
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+          />
+
+          {/* Modal */}
+          <motion.div
+            initial={{ y: '100%', opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: '100%', opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 220, damping: 28 }}
+            onClick={e => e.stopPropagation()}
+            className="relative glass rounded-t-2xl sm:rounded-2xl w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto"
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-line sticky top-0 bg-bg-card/95 backdrop-blur-md z-10">
+              <h2 className="text-white font-semibold text-base">
+                {editTx ? (isEditingTransfer ? 'Edit Transfer' : 'Edit Transaction') : 'Add Transaction'}
+              </h2>
+              <button onClick={dismiss} className="text-gray-400 hover:text-white transition-colors">
+                <X size={18} />
+              </button>
+            </div>
 
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
           {!isEditingTransfer && (
@@ -419,7 +447,9 @@ export default function AddTransactionModal({ onClose, editTx, defaultType }) {
             }
           </button>
         </form>
-      </div>
-    </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
   )
 }

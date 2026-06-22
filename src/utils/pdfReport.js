@@ -89,7 +89,7 @@ export function generateMonthlyReport({ monthKey, transactions, categories, acco
 
   doc.setFontSize(9)
   for (const acc of accounts) {
-    const balance = getAccountBalance(transactions, acc.id)
+    const balance = getAccountBalance(transactions, acc)
     doc.setFillColor(...hexToRgb(acc.color))
     doc.circle(margin + 6, y - 4, 4, 'F')
     doc.setTextColor(50)

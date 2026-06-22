@@ -18,7 +18,8 @@ function GoalForm({ initial, onSave, onCancel }) {
   const [error, setError]                 = useState('')
 
   // When linked to an account, current amount is the account balance
-  const linkedBalance = accountId ? getAccountBalance(transactions, accountId) : null
+  const linkedAccount = accounts.find(a => a.id === accountId)
+  const linkedBalance = linkedAccount ? getAccountBalance(transactions, linkedAccount) : null
 
   function submit(e) {
     e.preventDefault()
@@ -145,7 +146,7 @@ export default function Goals() {
   const goalsWithProgress = useMemo(() =>
     goals.map(g => {
       const current = g.accountId
-        ? Math.max(0, getAccountBalance(transactions, g.accountId))
+        ? Math.max(0, getAccountBalance(transactions, accounts.find(a => a.id === g.accountId) || g.accountId))
         : (g.currentAmount || 0)
       const pct = g.targetAmount > 0 ? Math.min(100, (current / g.targetAmount) * 100) : 0
       let daysLeft = null
