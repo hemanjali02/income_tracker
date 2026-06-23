@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, SlidersHorizontal, ChevronUp, ChevronDown, X, Download, Upload, Trash2, Calendar, Pencil, Copy, FileText } from 'lucide-react'
+import { Search, SlidersHorizontal, ChevronUp, ChevronDown, X, Download, Upload, Trash2, Calendar, Pencil, Copy, FileText, List, CalendarDays } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { useToast } from '../context/ToastContext'
 import { exportToCSV, parseCSV, generateId, formatCurrency, formatDate } from '../utils/helpers'
@@ -8,6 +8,7 @@ import TransactionRow from './TransactionRow'
 import AddTransactionModal from './AddTransactionModal'
 import ConfirmDialog from './ConfirmDialog'
 import BankImportModal from './BankImportModal'
+import TransactionCalendar from './TransactionCalendar'
 
 const PAGE_SIZE = 20
 
@@ -53,6 +54,7 @@ export default function Transactions({ onAdd }) {
   const [confirmBulk, setConfirmBulk] = useState(false)
   const [selected, setSelected] = useState(new Set())
   const [showBankImport, setShowBankImport] = useState(false)
+  const [viewMode, setViewMode] = useState('list') // 'list' | 'calendar'
 
   const months = useMemo(() => {
     const set = new Set(transactions.map(t => t.date.slice(0, 7)))
@@ -237,6 +239,23 @@ export default function Transactions({ onAdd }) {
           <span className="hidden sm:inline">Filters</span>
           {hasFilters && <span className="w-1.5 h-1.5 bg-violet-400 rounded-full" />}
         </button>
+        {/* View mode toggle */}
+        <div className="flex items-center bg-bg-card border border-line-subtle rounded-lg p-0.5">
+          <button onClick={() => setViewMode('list')}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              viewMode === 'list' ? 'bg-violet-500/20 text-violet-300' : 'text-gray-500 hover:text-gray-300'
+            }`}
+            title="List view">
+            <List size={13} />
+          </button>
+          <button onClick={() => setViewMode('calendar')}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              viewMode === 'calendar' ? 'bg-violet-500/20 text-violet-300' : 'text-gray-500 hover:text-gray-300'
+            }`}
+            title="Calendar view">
+            <CalendarDays size={13} />
+          </button>
+        </div>
         <button onClick={() => setShowBankImport(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-violet-500/30 bg-violet-500/10 text-violet-300 hover:bg-violet-500/15 text-sm transition-colors" title="Import bank PDF">
           <FileText size={14} /> <span className="hidden sm:inline">Bank PDF</span>
         </button>
@@ -324,7 +343,17 @@ export default function Transactions({ onAdd }) {
         </div>
       </div>
 
+      {viewMode === 'calendar' && (
+        <TransactionCalendar
+          transactions={filtered}
+          categories={categories}
+          accounts={accounts}
+          onEdit={setEditTx}
+        />
+      )}
+
       {/* Table */}
+      {viewMode === 'list' && (
       <div className="bg-bg-card border border-line-subtle rounded-xl overflow-hidden">
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full">
@@ -504,6 +533,7 @@ export default function Transactions({ onAdd }) {
           </div>
         )}
       </div>
+      )}
 
       {/* Floating bulk action bar */}
       <AnimatePresence>

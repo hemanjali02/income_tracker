@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { RefreshCw } from 'lucide-react'
 import { ToastProvider } from './context/ToastContext'
+import usePullToRefresh from './hooks/usePullToRefresh'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { AppProvider } from './context/AppContext'
 import Sidebar, { MobileMenuButton } from './components/Sidebar'
+import BalancesQuickAccess from './components/BalancesQuickAccess'
 import Dashboard from './components/Dashboard'
 import Transactions from './components/Transactions'
 import CategoryManager from './components/CategoryManager'
@@ -43,6 +46,11 @@ function AppShell() {
   const [addDefaultType, setAddDefaultType] = useState(null)
   const [mobileMenu, setMobileMenu] = useState(false)
 
+  const { pullDistance, refreshing } = usePullToRefresh(async () => {
+    await new Promise(r => setTimeout(r, 400))
+    window.location.reload()
+  })
+
   function openAdd(defaultType = null) {
     setAddDefaultType(defaultType)
     setShowAdd(true)
@@ -69,23 +77,44 @@ function AppShell() {
       />
 
       <main className="flex-1 lg:ml-56 min-h-screen min-w-0 overflow-x-hidden">
+        {/* Pull-to-refresh indicator (mobile only) */}
+        {(pullDistance > 0 || refreshing) && (
+          <div
+            className="lg:hidden fixed top-0 left-0 right-0 flex items-center justify-center z-50 pointer-events-none"
+            style={{ height: pullDistance, transition: refreshing ? 'height 0.2s' : 'none' }}
+          >
+            <div
+              className={`bg-violet-500/20 border border-violet-500/40 rounded-full p-2 shadow-lg ${refreshing ? 'animate-spin' : ''}`}
+              style={{
+                opacity: Math.min(1, pullDistance / 70),
+                transform: `scale(${Math.min(1, pullDistance / 70)}) rotate(${refreshing ? 0 : pullDistance * 4}deg)`,
+              }}
+            >
+              <RefreshCw size={16} className="text-violet-300" />
+            </div>
+          </div>
+        )}
+
         {!serverMode && <LocalModeBanner />}
 
-        <div className="sticky top-0 z-10 backdrop-blur-md bg-bg-base/80 border-b border-line-subtle px-4 sm:px-8 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="sticky top-0 z-20 backdrop-blur-md bg-bg-base/80 border-b border-line-subtle px-4 sm:px-8 py-3 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             <MobileMenuButton onClick={() => setMobileMenu(true)} />
-            <h2 className="text-sm font-semibold text-gray-300 capitalize">{view}</h2>
+            <h2 className="text-sm font-semibold text-gray-300 capitalize truncate">{view}</h2>
           </div>
-          <motion.button
-            whileTap={{ scale: 0.96 }}
-            whileHover={{ y: -1 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 22 }}
-            onClick={() => openAdd()}
-            className="btn-primary flex items-center gap-2 px-3 sm:px-4 py-2 text-white text-sm font-semibold rounded-lg shadow-lg shadow-violet-900/30"
-          >
-            <span className="text-lg leading-none">+</span>
-            <span className="hidden sm:inline">Add Transaction</span>
-          </motion.button>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <BalancesQuickAccess />
+            <motion.button
+              whileTap={{ scale: 0.96 }}
+              whileHover={{ y: -1 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 22 }}
+              onClick={() => openAdd()}
+              className="btn-primary flex items-center gap-2 px-3 sm:px-4 py-2 text-white text-sm font-semibold rounded-lg shadow-lg shadow-violet-900/30"
+            >
+              <span className="text-lg leading-none">+</span>
+              <span className="hidden sm:inline">Add Transaction</span>
+            </motion.button>
+          </div>
         </div>
 
         <div className="px-4 sm:px-8 py-6">

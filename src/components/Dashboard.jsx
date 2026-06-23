@@ -14,6 +14,7 @@ import TransactionRow from './TransactionRow'
 import AddTransactionModal from './AddTransactionModal'
 import ConfirmDialog from './ConfirmDialog'
 import NetWorthHistoryModal from './NetWorthHistoryModal'
+import AnimatedNumber from './AnimatedNumber'
 import { generateMonthlyReport } from '../utils/pdfReport'
 
 function SummaryCard({ label, value, sub, icon: Icon, color, trend, valueColor, onClick }) {
@@ -233,13 +234,17 @@ export default function Dashboard() {
 
       {/* Summary cards — Income / Expenses / Net / Net Worth */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <SummaryCard label="Total Income" value={formatCurrency(curIncome)} icon={TrendingUp} color="#10b981"
+        <SummaryCard label="Total Income"
+          value={<AnimatedNumber value={curIncome} format={formatCurrency} />}
+          icon={TrendingUp} color="#10b981"
           trend={pctChange(curIncome, prevIncome)} sub={`vs ${getMonthLabel(prevMonth)}`} />
-        <SummaryCard label="Total Expenses" value={formatCurrency(curExpense)} icon={TrendingDown} color="#f97316"
+        <SummaryCard label="Total Expenses"
+          value={<AnimatedNumber value={curExpense} format={formatCurrency} />}
+          icon={TrendingDown} color="#f97316"
           trend={pctChange(curExpense, prevExpense)} sub={`vs ${getMonthLabel(prevMonth)}`} />
         <SummaryCard
           label="Net This Month"
-          value={`${netBalance >= 0 ? '+' : '−'}${formatCurrency(Math.abs(netBalance))}`}
+          value={<><span>{netBalance >= 0 ? '+' : '−'}</span><AnimatedNumber value={Math.abs(netBalance)} format={formatCurrency} /></>}
           valueColor={netBalance >= 0 ? 'text-emerald-400' : 'text-rose-400'}
           icon={Wallet}
           color={netBalance >= 0 ? '#10b981' : '#f43f5e'}
@@ -247,7 +252,7 @@ export default function Dashboard() {
         />
         <SummaryCard
           label="Total Net Worth"
-          value={`${totalNetWorth >= 0 ? '' : '−'}${formatCurrency(Math.abs(totalNetWorth))}`}
+          value={<><span>{totalNetWorth < 0 && '−'}</span><AnimatedNumber value={Math.abs(totalNetWorth)} format={formatCurrency} /></>}
           valueColor={totalNetWorth >= 0 ? 'text-white' : 'text-rose-400'}
           icon={Landmark}
           color="#8b5cf6"
@@ -255,6 +260,41 @@ export default function Dashboard() {
           onClick={() => setShowNetWorthHistory(true)}
         />
       </div>
+
+      {/* Account Balances — moved up for quick reference */}
+      {accounts.length > 0 && (
+        <div className="bg-bg-card border border-line-subtle rounded-xl p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+              <Landmark size={14} className="text-violet-400" /> Account Balances
+            </h3>
+            <span className="text-xs text-gray-500">All-time</span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+            {accounts.map(acc => {
+              const balance = getAccountBalance(transactions, acc)
+              return (
+                <motion.div
+                  key={acc.id}
+                  whileHover={{ y: -2 }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 22 }}
+                  className="bg-bg-elevated border border-line-subtle rounded-xl p-4 relative overflow-hidden"
+                >
+                  <div className="absolute left-0 top-0 bottom-0 w-1" style={{ backgroundColor: acc.color }} />
+                  <div className="flex items-center gap-2 mb-2 pl-1">
+                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: acc.color }} />
+                    <span className="text-xs text-gray-400 truncate font-medium">{acc.name}</span>
+                  </div>
+                  <div className={`text-base font-bold pl-1 ${balance >= 0 ? 'text-white' : 'text-rose-400'}`}>
+                    {balance < 0 && '−'}
+                    <AnimatedNumber value={Math.abs(balance)} format={formatCurrency} />
+                  </div>
+                </motion.div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Charts row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
@@ -402,32 +442,6 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
-
-      {/* Account Balances */}
-      {accounts.length > 0 && (
-        <div className="bg-bg-card border border-line-subtle rounded-xl p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold text-white">Account Balances</h3>
-            <span className="text-xs text-gray-500">All-time</span>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-            {accounts.map(acc => {
-              const balance = getAccountBalance(transactions, acc)
-              return (
-                <div key={acc.id} className="bg-bg-elevated border border-line-subtle rounded-xl p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: acc.color }} />
-                    <span className="text-xs text-gray-400 truncate font-medium">{acc.name}</span>
-                  </div>
-                  <div className={`text-base font-bold ${balance >= 0 ? 'text-white' : 'text-rose-400'}`}>
-                    {balance < 0 && '−'}{formatCurrency(Math.abs(balance))}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
 
       {/* Year summary + Account breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
