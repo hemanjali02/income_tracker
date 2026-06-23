@@ -303,13 +303,25 @@ export default function Transactions({ onAdd }) {
       )}
 
       {/* Summary strip */}
-      <div className="flex flex-wrap gap-3 sm:gap-4 text-sm">
-        <span className="text-gray-400">{filtered.length} transactions</span>
-        <span className="text-emerald-400 font-medium">+{formatCurrency(totalIncome)}</span>
-        <span className="text-rose-400 font-medium">−{formatCurrency(totalExpense)}</span>
-        <span className={`font-semibold ${totalIncome - totalExpense >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
-          Net: {totalIncome - totalExpense >= 0 ? '+' : '−'}{formatCurrency(Math.abs(totalIncome - totalExpense))}
-        </span>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+        <div className="bg-bg-card border border-line-subtle rounded-lg px-3 py-2.5">
+          <div className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">Count</div>
+          <div className="text-sm font-bold text-white mt-0.5">{filtered.length} <span className="text-xs text-gray-500 font-normal">items</span></div>
+        </div>
+        <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-lg px-3 py-2.5">
+          <div className="text-[10px] uppercase tracking-wider text-emerald-400 font-semibold">Income</div>
+          <div className="text-sm font-bold text-emerald-300 mt-0.5">+{formatCurrency(totalIncome)}</div>
+        </div>
+        <div className="bg-rose-500/5 border border-rose-500/20 rounded-lg px-3 py-2.5">
+          <div className="text-[10px] uppercase tracking-wider text-rose-400 font-semibold">Expense</div>
+          <div className="text-sm font-bold text-rose-300 mt-0.5">−{formatCurrency(totalExpense)}</div>
+        </div>
+        <div className={`rounded-lg px-3 py-2.5 border ${totalIncome - totalExpense >= 0 ? 'bg-violet-500/5 border-violet-500/20' : 'bg-rose-500/5 border-rose-500/20'}`}>
+          <div className={`text-[10px] uppercase tracking-wider font-semibold ${totalIncome - totalExpense >= 0 ? 'text-violet-400' : 'text-rose-400'}`}>Net</div>
+          <div className={`text-sm font-bold mt-0.5 ${totalIncome - totalExpense >= 0 ? 'text-violet-300' : 'text-rose-300'}`}>
+            {totalIncome - totalExpense >= 0 ? '+' : '−'}{formatCurrency(Math.abs(totalIncome - totalExpense))}
+          </div>
+        </div>
       </div>
 
       {/* Table */}
@@ -317,10 +329,11 @@ export default function Transactions({ onAdd }) {
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-line">
-                <th className="px-4 py-3 w-10">
-                  <input type="checkbox" checked={allOnPageSelected} onChange={togglePageSelect}
-                    title="Select all on page" />
+              <tr className="border-b border-line bg-bg-elevated/40">
+                <th className="px-4 py-3 w-12">
+                  <label className="flex items-center cursor-pointer" title="Select all on page">
+                    <input type="checkbox" checked={allOnPageSelected} onChange={togglePageSelect} />
+                  </label>
                 </th>
                 {[
                   { key: 'name', label: 'Name' },
@@ -368,10 +381,17 @@ export default function Transactions({ onAdd }) {
 
         {/* Mobile cards */}
         <div className="md:hidden">
-          <div className="flex items-center gap-2 px-3 py-2 border-b border-line-subtle">
-            <input type="checkbox" checked={allOnPageSelected} onChange={togglePageSelect} title="Select all on page" />
-            <span className="text-xs text-gray-500">Select all</span>
-          </div>
+          <label className="flex items-center justify-between gap-2 px-4 py-3 border-b border-line-subtle cursor-pointer hover:bg-white/[0.02] transition-colors">
+            <div className="flex items-center gap-3">
+              <input type="checkbox" checked={allOnPageSelected} onChange={togglePageSelect} title="Select all on page" />
+              <span className="text-sm font-medium text-gray-300">
+                {allOnPageSelected ? 'Deselect all' : 'Select all'}
+              </span>
+            </div>
+            <span className="text-[11px] text-gray-500">
+              {paginated.length} on this page
+            </span>
+          </label>
           {paginated.length === 0 ? (
             <div className="py-16 text-center text-gray-500 text-sm">No transactions found</div>
           ) : (
@@ -384,9 +404,14 @@ export default function Transactions({ onAdd }) {
                 const pairedAccountId = isOut ? tx.toAccountId : tx.fromAccountId
                 const pairedAccount = isTransfer ? accounts.find(a => a.id === pairedAccountId) : null
                 return (
-                  <div key={tx.id} className={`px-3 py-3 ${selected.has(tx.id) ? 'bg-violet-500/[0.05]' : ''}`}>
-                    <div className="flex items-start gap-2">
-                      <input type="checkbox" checked={selected.has(tx.id)} onChange={() => toggleSelect(tx.id)} className="mt-1 flex-shrink-0" />
+                  <div key={tx.id} className={`relative px-4 py-3 transition-colors ${
+                    selected.has(tx.id) ? 'bg-violet-500/[0.08]' : 'hover:bg-white/[0.02]'
+                  }`}>
+                    {selected.has(tx.id) && <span className="absolute left-0 top-0 bottom-0 w-[3px] bg-violet-400" />}
+                    <div className="flex items-start gap-3">
+                      <label className="mt-0.5 flex-shrink-0 cursor-pointer">
+                        <input type="checkbox" checked={selected.has(tx.id)} onChange={() => toggleSelect(tx.id)} />
+                      </label>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
                           <span className="text-sm font-medium text-gray-200 truncate">{tx.name}</span>

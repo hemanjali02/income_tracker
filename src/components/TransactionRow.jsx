@@ -6,10 +6,17 @@ export default function TransactionRow({ tx, category, account, pairedAccount, o
   const isOut = tx.transferDirection === 'out'
 
   return (
-    <tr className={`border-b border-line-subtle hover:bg-white/[0.02] transition-colors group ${selected ? 'bg-violet-500/[0.05]' : ''}`}>
+    <tr className={`border-b border-line-subtle transition-colors group relative ${
+      selected
+        ? 'bg-violet-500/[0.08] hover:bg-violet-500/[0.10]'
+        : 'hover:bg-white/[0.025]'
+    }`}>
       {onToggleSelect && (
-        <td className="py-3 px-4 w-10">
-          <input type="checkbox" checked={!!selected} onChange={() => onToggleSelect(tx.id)} />
+        <td className="py-3 px-4 w-12 relative">
+          {selected && <span className="absolute left-0 top-0 bottom-0 w-[3px] bg-violet-400" />}
+          <label className="flex items-center cursor-pointer">
+            <input type="checkbox" checked={!!selected} onChange={() => onToggleSelect(tx.id)} />
+          </label>
         </td>
       )}
       <td className="py-3 px-4">
