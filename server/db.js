@@ -18,6 +18,9 @@ export async function connectDB() {
 const userSchema = new mongoose.Schema({
   id:             { type: String, required: true, unique: true },
   username:       { type: String, required: true, unique: true },
+  displayName:    String,
+  email:          String,
+  googleId:       { type: String, index: true, sparse: true },
   passwordSalt:   String,
   passwordHash:   String,
   createdAt:      { type: String, default: () => new Date().toISOString() },

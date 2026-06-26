@@ -5,6 +5,9 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import { models, User, Session, Budget } from './db.js'
 import { generateToken, hashPassword, verifyPassword, getTokenFromRequest } from './auth.js'
+import { OAuth2Client } from 'google-auth-library'
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID)
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const app = express()
@@ -135,6 +138,126 @@ app.post('/api/auth/logout', requireAuth, async (req, res) => {
     const token = getTokenFromRequest(req)
     await Session.deleteOne({ token })
     res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// Update profile (username and/or displayName)
+app.post('/api/auth/update-profile', requireAuth, async (req, res) => {
+  try {
+    const { username, displayName } = req.body || {}
+    const update = {}
+    if (username !== undefined) {
+      const clean = String(username).trim()
+      if (clean.length < 2) return res.status(400).json({ error: 'Username too short' })
+      if (clean !== req.user.username) {
+        const existing = await User.findOne({ username: { $regex: new RegExp(`^${clean}$`, 'i') } })
+        if (existing && existing.id !== req.userId) return res.status(400).json({ error: 'Username already taken' })
+        update.username = clean
+      }
+    }
+    if (displayName !== undefined) update.displayName = String(displayName).trim()
+    if (Object.keys(update).length === 0) return res.json({ user: safeUser(req.user) })
+    await User.updateOne({ id: req.userId }, update)
+    const fresh = await User.findOne({ id: req.userId }).lean()
+    res.json({ user: safeUser(fresh) })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// Delete account — wipes user + all their data (auth required)
+app.post('/api/auth/delete-account', requireAuth, async (req, res) => {
+  try {
+    const { password } = req.body || {}
+    const user = await User.findOne({ id: req.userId })
+    // Google users have no password; require explicit confirmation flag instead
+    if (user.passwordHash) {
+      if (!password) return res.status(400).json({ error: 'Password required' })
+      if (!verifyPassword(password, user.passwordSalt, user.passwordHash)) {
+        return res.status(401).json({ error: 'Incorrect password' })
+      }
+    }
+    await wipeUserData(req.userId)
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// Public deletion request (for users not currently signed in)
+app.post('/api/auth/delete-account-public', async (req, res) => {
+  try {
+    const { username, password } = req.body || {}
+    if (!username || !password) return res.status(400).json({ error: 'Username and password required' })
+    const user = await User.findOne({ username: { $regex: new RegExp(`^${username}$`, 'i') } })
+    if (!user || !user.passwordHash) return res.status(401).json({ error: 'Invalid credentials' })
+    if (!verifyPassword(password, user.passwordSalt, user.passwordHash)) {
+      return res.status(401).json({ error: 'Invalid credentials' })
+    }
+    await wipeUserData(user.id)
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+async function wipeUserData(userId) {
+  const collections = [
+    models.transactions, models.categories, models.accounts,
+    models.investments, models.recurring, models.goals,
+    models.receivables, models.networthsnapshots, Budget,
+  ]
+  await Promise.all([
+    ...collections.map(M => M.deleteMany({ userId })),
+    Session.deleteMany({ userId }),
+    User.deleteOne({ id: userId }),
+  ])
+}
+
+// Google Sign-In: verify Google ID token, create or log in user
+app.post('/api/auth/google', async (req, res) => {
+  try {
+    const { credential } = req.body || {}
+    if (!credential) return res.status(400).json({ error: 'Missing Google credential' })
+    if (!process.env.GOOGLE_CLIENT_ID) return res.status(500).json({ error: 'Google sign in not configured on server' })
+
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    })
+    const payload = ticket.getPayload()
+    if (!payload?.email_verified) return res.status(401).json({ error: 'Google email not verified' })
+
+    const googleSub = payload.sub
+    const email = payload.email
+    const name = payload.name || email.split('@')[0]
+
+    let user = await User.findOne({ googleId: googleSub })
+    if (!user) {
+      // Try linking by username if same email-based username exists, otherwise create new
+      const baseUsername = email.split('@')[0]
+      let username = baseUsername
+      let suffix = 0
+      while (await User.findOne({ username: { $regex: new RegExp(`^${username}$`, 'i') } })) {
+        suffix += 1
+        username = `${baseUsername}${suffix}`
+      }
+      user = await User.create({
+        id: uid(),
+        username,
+        displayName: name,
+        email,
+        googleId: googleSub,
+      })
+      const { seedUserDefaults } = await import('./db.js')
+      await seedUserDefaults(user.id)
+    }
+
+    const token = generateToken()
+    await Session.create({ token, userId: user.id })
+    res.json({ token, user: safeUser(user.toObject ? user.toObject() : user) })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }

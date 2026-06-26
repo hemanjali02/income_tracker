@@ -1,8 +1,12 @@
 import { useState, useEffect } from 'react'
+import { Routes, Route } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { RefreshCw } from 'lucide-react'
 import { ToastProvider } from './context/ToastContext'
 import usePullToRefresh from './hooks/usePullToRefresh'
+import Privacy from './components/public/Privacy'
+import Terms from './components/public/Terms'
+import DeleteAccountPublic from './components/public/DeleteAccountPublic'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { AppProvider } from './context/AppContext'
 import Sidebar, { MobileMenuButton } from './components/Sidebar'
@@ -173,11 +177,18 @@ function AppGate() {
 
 export default function App() {
   return (
-    <ToastProvider>
-      <AuthProvider>
-        <AppGate />
-        <Toasts />
-      </AuthProvider>
-    </ToastProvider>
+    <Routes>
+      <Route path="/privacy" element={<Privacy />} />
+      <Route path="/terms" element={<Terms />} />
+      <Route path="/delete-account" element={<DeleteAccountPublic />} />
+      <Route path="*" element={
+        <ToastProvider>
+          <AuthProvider>
+            <AppGate />
+            <Toasts />
+          </AuthProvider>
+        </ToastProvider>
+      } />
+    </Routes>
   )
 }

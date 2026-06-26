@@ -1,6 +1,9 @@
 import { useState } from 'react'
+import { GoogleLogin } from '@react-oauth/google'
 import { TrendingUp, Lock, User as UserIcon, Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+
+const HAS_GOOGLE = !!import.meta.env.VITE_GOOGLE_CLIENT_ID
 
 const inputCls = `w-full bg-bg-input border border-line-subtle rounded-lg pl-10 pr-10 py-2.5 text-sm text-white
   placeholder-gray-500 focus:outline-none focus:border-violet-500 focus:bg-bg-elevated transition-colors`
@@ -39,7 +42,7 @@ function PasswordStrength({ password }) {
 }
 
 export default function Login() {
-  const { login, register } = useAuth()
+  const { login, register, signInWithGoogle } = useAuth()
   const [mode, setMode] = useState('login')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -91,6 +94,31 @@ export default function Login() {
 
         {/* Form */}
         <div className="glass rounded-2xl p-6 shadow-2xl">
+          {/* Google sign-in */}
+          {HAS_GOOGLE && (
+            <>
+              <div className="flex justify-center mb-4">
+                <GoogleLogin
+                  theme="filled_black"
+                  shape="pill"
+                  text={mode === 'login' ? 'signin_with' : 'signup_with'}
+                  size="large"
+                  onSuccess={async (resp) => {
+                    setError('')
+                    try { await signInWithGoogle(resp.credential) }
+                    catch (err) { setError(err.message || 'Google sign in failed') }
+                  }}
+                  onError={() => setError('Google sign in failed')}
+                />
+              </div>
+              <div className="flex items-center gap-3 mb-4 text-[10px] text-gray-600 uppercase tracking-wider">
+                <div className="h-px bg-line-subtle flex-1" />
+                <span>or with username</span>
+                <div className="h-px bg-line-subtle flex-1" />
+              </div>
+            </>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-medium text-gray-400 mb-1.5">Username</label>

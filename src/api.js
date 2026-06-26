@@ -158,6 +158,26 @@ export const api = {
     })
   },
 
+  async updateProfile(data) {
+    const res = await apiCall('/auth/update-profile', { method: 'POST', body: JSON.stringify(data) })
+    return res.user
+  },
+
+  async deleteAccount(password) {
+    await apiCall('/auth/delete-account', { method: 'POST', body: JSON.stringify({ password }) })
+    setToken(null)
+  },
+
+  async deleteAccountPublic(username, password) {
+    await apiCall('/auth/delete-account-public', { method: 'POST', body: JSON.stringify({ username, password }) })
+  },
+
+  async googleSignIn(credential) {
+    const res = await apiCall('/auth/google', { method: 'POST', body: JSON.stringify({ credential }) })
+    setToken(res.token)
+    return res.user
+  },
+
   hasToken() { return !!getToken() },
 
   // Transactions

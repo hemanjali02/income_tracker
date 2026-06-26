@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { LayoutDashboard, ArrowLeftRight, Tag, Wallet, TrendingUp, Target, Menu, X, Database, HardDrive, LogOut, Briefcase, KeyRound, Eye, EyeOff, Repeat, Flag, HandCoins, LineChart, Coins } from 'lucide-react'
+import { LayoutDashboard, ArrowLeftRight, Tag, Wallet, TrendingUp, Target, Menu, X, Database, HardDrive, LogOut, Briefcase, KeyRound, Eye, EyeOff, Repeat, Flag, HandCoins, LineChart, Coins, User, Trash2, AlertTriangle } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../context/AuthContext'
 import Modal from './Modal'
@@ -140,9 +140,135 @@ function ChangePasswordModal({ onClose }) {
   )
 }
 
+function ProfileModal({ onClose }) {
+  const { user, updateProfile } = useAuth()
+  const [username, setUsername] = useState(user?.username || '')
+  const [displayName, setDisplayName] = useState(user?.displayName || '')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  async function submit(e) {
+    e.preventDefault()
+    setError('')
+    if (username.trim().length < 2) return setError('Username must be at least 2 characters')
+    setLoading(true)
+    try {
+      await updateProfile({ username: username.trim(), displayName: displayName.trim() })
+      onClose()
+    } catch (err) {
+      setError(err.message || 'Could not update profile')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Modal onClose={onClose} title="Edit Profile" icon={User} maxWidth="sm">
+      <form onSubmit={submit} className="px-5 py-4 space-y-3">
+        <div className="flex items-center gap-3 pb-3 mb-1 border-b border-line-subtle">
+          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-base font-bold text-white">
+            {(displayName || username || 'U').charAt(0).toUpperCase()}
+          </div>
+          <div className="text-xs text-gray-500">
+            {user?.email && <div>{user.email}</div>}
+            {user?.googleId && <div className="text-violet-400 mt-0.5">Signed in with Google</div>}
+          </div>
+        </div>
+        <div>
+          <label className={labelCls}>Username</label>
+          <input autoFocus className={inputCls} value={username} onChange={e => setUsername(e.target.value)} />
+        </div>
+        <div>
+          <label className={labelCls}>Display name <span className="text-gray-600">(optional)</span></label>
+          <input className={inputCls} value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="Your name" />
+        </div>
+        {error && (
+          <div className="text-rose-400 text-xs bg-rose-500/10 border border-rose-500/20 rounded-lg px-3 py-2">{error}</div>
+        )}
+        <div className="flex gap-2 pt-1">
+          <button type="submit" disabled={loading}
+            className="flex-1 btn-primary py-2 text-white text-sm font-semibold rounded-lg disabled:opacity-50">
+            {loading ? 'Saving...' : 'Save Changes'}
+          </button>
+          <button type="button" onClick={onClose} className="px-4 py-2 text-gray-400 hover:text-white text-sm">
+            Cancel
+          </button>
+        </div>
+      </form>
+    </Modal>
+  )
+}
+
+function DeleteAccountModal({ onClose }) {
+  const { user, deleteAccount } = useAuth()
+  const [password, setPassword] = useState('')
+  const [confirmText, setConfirmText] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+  const isGoogle = !!user?.googleId && !user?.passwordHash
+
+  async function submit(e) {
+    e.preventDefault()
+    setError('')
+    if (confirmText.trim().toLowerCase() !== 'delete my account') {
+      return setError('Type the confirmation phrase exactly')
+    }
+    if (!isGoogle && !password) return setError('Enter your password')
+    setLoading(true)
+    try {
+      await deleteAccount(password)
+    } catch (err) {
+      setError(err.message || 'Could not delete account')
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Modal onClose={onClose} title="Delete Account" icon={Trash2} iconColor="#f43f5e" maxWidth="sm">
+      <form onSubmit={submit} className="px-5 py-4 space-y-3">
+        <div className="bg-rose-500/5 border border-rose-500/20 rounded-lg p-3 flex gap-2.5">
+          <AlertTriangle size={14} className="text-rose-400 flex-shrink-0 mt-0.5" />
+          <p className="text-xs text-rose-300/90 leading-relaxed">
+            This permanently removes your account and every record we hold for you. There is no undo.
+          </p>
+        </div>
+        {!isGoogle && (
+          <div>
+            <label className={labelCls}>Confirm with your password</label>
+            <input autoFocus type="password" className={inputCls} value={password}
+              onChange={e => setPassword(e.target.value)} placeholder="Current password" />
+          </div>
+        )}
+        <div>
+          <label className={labelCls}>
+            Type <span className="text-rose-400 font-bold">delete my account</span> to confirm
+          </label>
+          <input className={inputCls} value={confirmText} onChange={e => setConfirmText(e.target.value)} placeholder="delete my account" />
+        </div>
+        {error && (
+          <div className="text-rose-400 text-xs bg-rose-500/10 border border-rose-500/20 rounded-lg px-3 py-2">{error}</div>
+        )}
+        <div className="flex gap-2 pt-1">
+          <button type="submit" disabled={loading}
+            className="flex-1 py-2 bg-rose-600 hover:bg-rose-500 text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-50">
+            {loading ? 'Deleting...' : 'Permanently delete'}
+          </button>
+          <button type="button" onClick={onClose} className="px-4 py-2 text-gray-400 hover:text-white text-sm">
+            Cancel
+          </button>
+        </div>
+      </form>
+    </Modal>
+  )
+}
+
+const APP_VERSION = '2.0.0'
+
 export default function Sidebar({ activeView, onNavigate, mobileOpen, onCloseMobile }) {
   const { user, serverMode, logout } = useAuth()
   const [showChangePwd, setShowChangePwd] = useState(false)
+  const [showProfile, setShowProfile] = useState(false)
+  const [showDelete, setShowDelete] = useState(false)
 
   function handleNav(id) {
     onNavigate(id)
@@ -152,6 +278,8 @@ export default function Sidebar({ activeView, onNavigate, mobileOpen, onCloseMob
   return (
     <>
       {showChangePwd && <ChangePasswordModal onClose={() => setShowChangePwd(false)} />}
+      {showProfile && <ProfileModal onClose={() => setShowProfile(false)} />}
+      {showDelete && <DeleteAccountModal onClose={() => setShowDelete(false)} />}
 
       <AnimatePresence>
         {mobileOpen && (
@@ -211,28 +339,47 @@ export default function Sidebar({ activeView, onNavigate, mobileOpen, onCloseMob
         </nav>
 
         {/* User card */}
-        <div className="border-t border-line-subtle px-3 py-3">
+        <div className="border-t border-line-subtle px-3 py-3 space-y-2">
           {user ? (
             <div className="bg-bg-elevated rounded-lg p-3 border border-line-subtle space-y-2">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
-                  {user.username.charAt(0).toUpperCase()}
-                </div>
+                <button
+                  onClick={() => setShowProfile(true)}
+                  className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-xs font-bold text-white flex-shrink-0 hover:ring-2 hover:ring-violet-400/40 transition-all"
+                  title="Edit profile"
+                >
+                  {(user.displayName || user.username).charAt(0).toUpperCase()}
+                </button>
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs font-semibold text-white truncate">{user.username}</div>
-                  <div className="text-[10px] text-gray-500">Signed in</div>
+                  <div className="text-xs font-semibold text-white truncate">{user.displayName || user.username}</div>
+                  <div className="text-[10px] text-gray-500 truncate">{user.email || '@' + user.username}</div>
                 </div>
                 <button onClick={logout} title="Sign out"
                   className="p-1.5 text-gray-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors flex-shrink-0">
                   <LogOut size={13} />
                 </button>
               </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                <button
+                  onClick={() => setShowProfile(true)}
+                  className="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-[11px] text-gray-400 hover:text-violet-300 hover:bg-violet-500/10 transition-colors border border-line-subtle hover:border-violet-500/30"
+                >
+                  <User size={11} /> Profile
+                </button>
+                {!user.googleId && (
+                  <button
+                    onClick={() => setShowChangePwd(true)}
+                    className="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-[11px] text-gray-400 hover:text-violet-300 hover:bg-violet-500/10 transition-colors border border-line-subtle hover:border-violet-500/30"
+                  >
+                    <KeyRound size={11} /> Password
+                  </button>
+                )}
+              </div>
               <button
-                onClick={() => setShowChangePwd(true)}
-                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[11px] text-gray-500 hover:text-violet-300 hover:bg-violet-500/10 transition-colors border border-transparent hover:border-violet-500/20"
+                onClick={() => setShowDelete(true)}
+                className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-[11px] text-gray-600 hover:text-rose-400 hover:bg-rose-500/5 transition-colors"
               >
-                <KeyRound size={11} />
-                Change Password
+                <Trash2 size={11} /> Delete account
               </button>
             </div>
           ) : (
@@ -241,6 +388,15 @@ export default function Sidebar({ activeView, onNavigate, mobileOpen, onCloseMob
               {serverMode ? 'Server mode' : 'Local storage'}
             </div>
           )}
+
+          {/* Version + legal links */}
+          <div className="px-2 pt-1 flex items-center justify-between text-[10px] text-gray-600">
+            <span>v{APP_VERSION}</span>
+            <div className="flex gap-2.5">
+              <a href="/privacy" target="_blank" rel="noopener" className="hover:text-violet-300 transition-colors">Privacy</a>
+              <a href="/terms" target="_blank" rel="noopener" className="hover:text-violet-300 transition-colors">Terms</a>
+            </div>
+          </div>
         </div>
       </aside>
     </>
