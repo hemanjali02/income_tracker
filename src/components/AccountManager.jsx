@@ -3,7 +3,10 @@ import { Plus, Pencil, Trash2, X, Check, CreditCard, ArrowLeftRight, ChevronLeft
 import { useApp } from '../context/AppContext'
 import { generateId, formatCurrency, formatDate, formatCompact, getAccountBalance, getCurrentCreditCycle, getCreditCycleSpend } from '../utils/helpers'
 import { inputSmCls, labelCls } from '../utils/styles'
+import { useBilling } from '../context/BillingContext'
+import { FREE_MAX_ACCOUNTS } from '../config/plans'
 import ColorPicker from './ColorPicker'
+import ProBadge from './billing/ProBadge'
 import ConfirmDialog from './ConfirmDialog'
 import AddTransactionModal from './AddTransactionModal'
 
@@ -24,7 +27,7 @@ export function AccountIcon({ type, color, size = 18 }) {
   )
 }
 
-function AccountForm({ initial, onSave, onCancel }) {
+function AccountForm({ initial, onSave, onCancel, canCredit = true, onWantCredit }) {
   const [name, setName] = useState(initial?.name || '')
   const [color, setColor] = useState(initial?.color || '#7c3aed')
   const [accountType, setAccountType] = useState(initial?.accountType || 'bank')
@@ -59,15 +62,20 @@ function AccountForm({ initial, onSave, onCancel }) {
       <div>
         <label className={labelCls}>Type</label>
         <div className="grid grid-cols-4 gap-2">
-          {ACCOUNT_TYPES.map(({ id, label, icon: Icon }) => (
-            <button key={id} type="button" onClick={() => setAccountType(id)}
-              className={`flex flex-col items-center gap-1 py-2 rounded-lg border text-xs transition-all ${
-                accountType === id ? 'bg-violet-500/15 border-violet-500/40 text-violet-300' : 'border-line-subtle text-gray-500 hover:border-line hover:text-gray-300'
-              }`}>
-              <Icon size={14} />
-              {label}
-            </button>
-          ))}
+          {ACCOUNT_TYPES.map(({ id, label, icon: Icon }) => {
+            const creditLocked = id === 'credit' && !canCredit
+            return (
+              <button key={id} type="button"
+                onClick={() => { if (creditLocked) { onWantCredit?.() } else { setAccountType(id) } }}
+                className={`relative flex flex-col items-center gap-1 py-2 rounded-lg border text-xs transition-all ${
+                  accountType === id ? 'bg-violet-500/15 border-violet-500/40 text-violet-300' : 'border-line-subtle text-gray-500 hover:border-line hover:text-gray-300'
+                }`}>
+                <Icon size={14} />
+                {label}
+                {creditLocked && <span className="absolute -top-1.5 -right-1.5"><ProBadge size="xs" /></span>}
+              </button>
+            )
+          })}
         </div>
       </div>
       {accountType === 'credit' ? (
@@ -271,12 +279,19 @@ function AccountDetail({ acc, transactions, categories, accounts, onBack, onEdit
 
 export default function AccountManager({ onTransfer }) {
   const { accounts, transactions, categories, addAccount, updateAccount, deleteAccount } = useApp()
+  const { isPro, can, promptUpgrade } = useBilling()
   const [adding, setAdding] = useState(false)
   const [editId, setEditId] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(null)
   const [selectedAccId, setSelectedAccId] = useState(null)
 
   const selectedAcc = accounts.find(a => a.id === selectedAccId)
+  const atAccountLimit = !isPro && accounts.length >= FREE_MAX_ACCOUNTS
+
+  function handleAddClick() {
+    if (atAccountLimit) return promptUpgrade('unlimitedAccounts')
+    setAdding(true); setEditId(null)
+  }
 
   function getStats(accountId) {
     const txs = transactions.filter(t => t.accountId === accountId)
@@ -350,14 +365,23 @@ export default function AccountManager({ onTransfer }) {
               <ArrowLeftRight size={15} /> Transfer
             </button>
           )}
-          <button onClick={() => { setAdding(true); setEditId(null) }}
+          <button onClick={handleAddClick}
             className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium rounded-lg transition-colors">
             <Plus size={15} /> Add Account
+            {atAccountLimit && <ProBadge size="xs" />}
           </button>
         </div>
       </div>
 
-      {adding && <AccountForm onSave={handleAdd} onCancel={() => setAdding(false)} />}
+      {!isPro && (
+        <div className="text-[11px] text-gray-500">
+          {accounts.length} of {FREE_MAX_ACCOUNTS} free accounts used
+          {atAccountLimit && <button onClick={() => promptUpgrade('unlimitedAccounts')} className="ml-1.5 text-violet-400 font-medium hover:text-violet-300">Upgrade for unlimited</button>}
+        </div>
+      )}
+
+      {adding && <AccountForm onSave={handleAdd} onCancel={() => setAdding(false)}
+        canCredit={can('creditCards')} onWantCredit={() => promptUpgrade('creditCards')} />}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {accounts.map(acc => {
@@ -370,6 +394,8 @@ export default function AccountManager({ onTransfer }) {
                   initial={acc}
                   onSave={data => { updateAccount(acc.id, data); setEditId(null) }}
                   onCancel={() => setEditId(null)}
+                  canCredit={can('creditCards') || acc.accountType === 'credit'}
+                  onWantCredit={() => promptUpgrade('creditCards')}
                 />
               ) : (
                 <div

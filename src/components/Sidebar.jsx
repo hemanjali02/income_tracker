@@ -1,7 +1,10 @@
 import { useState } from 'react'
-import { LayoutDashboard, ArrowLeftRight, Tag, Wallet, TrendingUp, Target, Menu, X, Database, HardDrive, LogOut, Briefcase, KeyRound, Eye, EyeOff, Repeat, Flag, HandCoins, LineChart, Coins, User, Trash2, AlertTriangle } from 'lucide-react'
+import { LayoutDashboard, ArrowLeftRight, Tag, Wallet, TrendingUp, Target, Menu, X, Database, HardDrive, LogOut, Briefcase, KeyRound, Eye, EyeOff, Repeat, Flag, HandCoins, LineChart, Coins, User, Trash2, AlertTriangle, Sparkles } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../context/AuthContext'
+import { useBilling } from '../context/BillingContext'
+import { PRO_VIEWS } from '../config/plans'
+import ProBadge from './billing/ProBadge'
 import Modal from './Modal'
 
 const navSections = [
@@ -142,6 +145,7 @@ function ChangePasswordModal({ onClose }) {
 
 function ProfileModal({ onClose }) {
   const { user, updateProfile } = useAuth()
+  const { plan, isPro, cancelSubscription, busy, promptUpgrade } = useBilling()
   const [username, setUsername] = useState(user?.username || '')
   const [displayName, setDisplayName] = useState(user?.displayName || '')
   const [error, setError] = useState('')
@@ -193,6 +197,30 @@ function ProfileModal({ onClose }) {
           <button type="button" onClick={onClose} className="px-4 py-2 text-gray-400 hover:text-white text-sm">
             Cancel
           </button>
+        </div>
+
+        {/* Plan management */}
+        <div className="pt-3 mt-1 border-t border-line-subtle">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-xs text-gray-500">Current plan</div>
+              <div className="text-sm font-semibold text-white capitalize">
+                {plan === 'lifetime' ? 'Lifetime' : plan === 'pro' ? 'Pro' : 'Free'}
+              </div>
+            </div>
+            {plan === 'free' && (
+              <button type="button" onClick={() => { onClose(); promptUpgrade() }}
+                className="text-xs font-semibold text-violet-300 hover:text-violet-200">
+                Upgrade
+              </button>
+            )}
+            {plan === 'pro' && (
+              <button type="button" onClick={cancelSubscription} disabled={busy}
+                className="text-xs text-gray-500 hover:text-rose-400 transition-colors disabled:opacity-50">
+                Cancel subscription
+              </button>
+            )}
+          </div>
         </div>
       </form>
     </Modal>
@@ -266,6 +294,7 @@ const APP_VERSION = '2.0.0'
 
 export default function Sidebar({ activeView, onNavigate, mobileOpen, onCloseMobile }) {
   const { user, serverMode, logout } = useAuth()
+  const { isPro, plan, promptUpgrade } = useBilling()
   const [showChangePwd, setShowChangePwd] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
   const [showDelete, setShowDelete] = useState(false)
@@ -319,6 +348,7 @@ export default function Sidebar({ activeView, onNavigate, mobileOpen, onCloseMob
               </div>
               {section.items.map(({ id, label, icon: Icon }) => {
                 const active = activeView === id
+                const locked = !isPro && PRO_VIEWS.has(id)
                 return (
                   <button
                     key={id}
@@ -330,13 +360,33 @@ export default function Sidebar({ activeView, onNavigate, mobileOpen, onCloseMob
                     }`}
                   >
                     <Icon size={15} className={active ? 'text-violet-300' : ''} />
-                    {label}
+                    <span className="flex-1 text-left">{label}</span>
+                    {locked && <ProBadge size="xs" />}
                   </button>
                 )
               })}
             </div>
           ))}
         </nav>
+
+        {/* Upgrade CTA / plan status */}
+        {user && (
+          isPro ? (
+            <div className="px-3 pb-1">
+              <div className="flex items-center justify-center gap-1.5 text-[11px] font-semibold text-violet-300 bg-violet-500/10 border border-violet-500/25 rounded-lg py-1.5">
+                <ProBadge size="xs" />
+                {plan === 'lifetime' ? 'Lifetime member' : 'Pro member'}
+              </div>
+            </div>
+          ) : (
+            <div className="px-3 pb-1">
+              <button onClick={() => promptUpgrade()}
+                className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-white rounded-lg py-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 transition-colors shadow-lg shadow-violet-900/30">
+                <Sparkles size={12} /> Upgrade to Pro
+              </button>
+            </div>
+          )
+        )}
 
         {/* User card */}
         <div className="border-t border-line-subtle px-3 py-3 space-y-2">

@@ -9,6 +9,9 @@ import Terms from './components/public/Terms'
 import DeleteAccountPublic from './components/public/DeleteAccountPublic'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { AppProvider } from './context/AppContext'
+import { BillingProvider, useBilling } from './context/BillingContext'
+import UpgradeModal from './components/billing/UpgradeModal'
+import LockedView from './components/billing/LockedView'
 import Sidebar, { MobileMenuButton } from './components/Sidebar'
 import BalancesQuickAccess from './components/BalancesQuickAccess'
 import Dashboard from './components/Dashboard'
@@ -46,6 +49,7 @@ function LocalModeBanner() {
 
 function AppShell() {
   const { serverMode } = useAuth()
+  const { can } = useBilling()
   const [view, setView] = useState('dashboard')
   const [showAdd, setShowAdd] = useState(false)
   const [addDefaultType, setAddDefaultType] = useState(null)
@@ -133,13 +137,13 @@ function AppShell() {
             >
               {view === 'dashboard' && <Dashboard />}
               {view === 'balances' && <Balances />}
-              {view === 'analysis' && <Analysis />}
+              {view === 'analysis' && (can('analysis') ? <Analysis /> : <LockedView feature="analysis" />)}
               {view === 'transactions' && <Transactions onAdd={() => openAdd()} />}
-              {view === 'recurring' && <Recurring />}
-              {view === 'receivables' && <Receivables />}
-              {view === 'investments' && <Investments />}
+              {view === 'recurring' && (can('recurring') ? <Recurring /> : <LockedView feature="recurring" />)}
+              {view === 'receivables' && (can('receivables') ? <Receivables /> : <LockedView feature="receivables" />)}
+              {view === 'investments' && (can('investments') ? <Investments /> : <LockedView feature="investments" />)}
               {view === 'budgets' && <BudgetView />}
-              {view === 'goals' && <Goals />}
+              {view === 'goals' && (can('goals') ? <Goals /> : <LockedView feature="goals" />)}
               {view === 'categories' && <CategoryManager />}
               {view === 'accounts' && <AccountManager onTransfer={() => openAdd('transfer')} />}
             </motion.div>
@@ -148,6 +152,7 @@ function AppShell() {
       </main>
 
       {showAdd && <AddTransactionModal defaultType={addDefaultType} onClose={() => { setShowAdd(false); setAddDefaultType(null) }} />}
+      <UpgradeModal />
     </div>
   )
 }
@@ -184,7 +189,9 @@ export default function App() {
       <Route path="*" element={
         <ToastProvider>
           <AuthProvider>
-            <AppGate />
+            <BillingProvider>
+              <AppGate />
+            </BillingProvider>
             <Toasts />
           </AuthProvider>
         </ToastProvider>

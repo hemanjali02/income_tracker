@@ -73,11 +73,19 @@ export function AuthProvider({ children }) {
     return u
   }, [addToast])
 
+  // Re-pull the current user (used after a payment changes the plan).
+  const refreshUser = useCallback(async (overrideUser) => {
+    if (overrideUser) { setUser(overrideUser); return overrideUser }
+    const me = await api.me()
+    setUser(me)
+    return me
+  }, [])
+
   return (
     <AuthContext.Provider value={{
       user, serverMode, ready,
       login, register, logout, changePassword,
-      updateProfile, deleteAccount, signInWithGoogle,
+      updateProfile, deleteAccount, signInWithGoogle, refreshUser,
     }}>
       {children}
     </AuthContext.Provider>

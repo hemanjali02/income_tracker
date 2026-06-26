@@ -26,6 +26,13 @@ const userSchema = new mongoose.Schema({
   createdAt:      { type: String, default: () => new Date().toISOString() },
   failedAttempts: { type: Number, default: 0 },
   lockUntil:      { type: Date, default: null },
+  // Billing
+  plan:                   { type: String, default: 'free' },   // free | pro | lifetime
+  planStatus:             { type: String, default: 'none' },    // none | active | cancelled | past_due
+  planExpiry:             String,                               // ISO date the pro period ends
+  billingInterval:        String,                               // monthly | yearly
+  razorpayCustomerId:     String,
+  razorpaySubscriptionId: String,
 })
 export const User = mongoose.model('User', userSchema)
 

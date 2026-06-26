@@ -178,6 +178,27 @@ export const api = {
     return res.user
   },
 
+  // Billing
+  async billingConfig() {
+    try { return await apiCall('/billing/config') }
+    catch { return { billingEnabled: false, keyId: null, currency: 'INR', prices: null } }
+  },
+  async billingSubscribe(interval) {
+    return apiCall('/billing/subscribe', { method: 'POST', body: JSON.stringify({ interval }) })
+  },
+  async billingVerifySubscription(payload) {
+    return apiCall('/billing/verify-subscription', { method: 'POST', body: JSON.stringify(payload) })
+  },
+  async billingOrder() {
+    return apiCall('/billing/order', { method: 'POST', body: JSON.stringify({ product: 'lifetime' }) })
+  },
+  async billingVerifyOrder(payload) {
+    return apiCall('/billing/verify-order', { method: 'POST', body: JSON.stringify(payload) })
+  },
+  async billingCancel() {
+    return apiCall('/billing/cancel', { method: 'POST' })
+  },
+
   hasToken() { return !!getToken() },
 
   // Transactions
