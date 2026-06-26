@@ -160,31 +160,6 @@ export default function Dashboard() {
     return { totalLimit, totalSpent, pct, count: monthBudgets.length }
   }, [budgets, selectedMonth, curTxs])
 
-  const selectedYear = selectedMonth.split('-')[0]
-  const yearStats = useMemo(() => {
-    const yearTxs = transactions.filter(t => t.date.startsWith(selectedYear) && t.type !== 'transfer')
-    const inc = yearTxs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
-    const exp = yearTxs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
-    const monthsActive = new Set(yearTxs.map(t => t.date.slice(0, 7))).size
-    return { income: inc, expense: exp, net: inc - exp, count: yearTxs.length, months: monthsActive }
-  }, [transactions, selectedYear])
-
-  const accountBreakdown = useMemo(() => {
-    const map = {}
-    for (const tx of curTxs) {
-      if (tx.type !== 'expense') continue
-      if (!map[tx.accountId]) map[tx.accountId] = 0
-      map[tx.accountId] += tx.amount
-    }
-    return Object.entries(map)
-      .map(([id, amount]) => {
-        const acc = accounts.find(a => a.id === id)
-        return { id, name: acc?.name || id, color: acc?.color || '#64748b', amount }
-      })
-      .sort((a, b) => b.amount - a.amount)
-      .slice(0, 5)
-  }, [curTxs, accounts])
-
   const nonTransferCount = curTxs.filter(t => t.type !== 'transfer').length
   const recentTxs = useMemo(() => [...curTxs].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8), [curTxs])
 
@@ -440,67 +415,6 @@ export default function Dashboard() {
               <InsightCard icon="💸" title="Avg daily expense" value={`₹${Math.round(avgDaily).toLocaleString('en-IN')}/day`} />
             )}
           </div>
-        </div>
-      </div>
-
-      {/* Year summary + Account breakdown */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 bg-bg-card border border-line-subtle rounded-xl p-5">
-          <h3 className="text-sm font-semibold text-white mb-4">{selectedYear} Year Summary</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="bg-bg-elevated rounded-lg p-3 border border-line-subtle">
-              <div className="text-xs text-gray-500 mb-1">Year Income</div>
-              <div className="text-sm font-bold text-emerald-400">{formatCurrency(yearStats.income)}</div>
-            </div>
-            <div className="bg-bg-elevated rounded-lg p-3 border border-line-subtle">
-              <div className="text-xs text-gray-500 mb-1">Year Expenses</div>
-              <div className="text-sm font-bold text-orange-400">{formatCurrency(yearStats.expense)}</div>
-            </div>
-            <div className="bg-bg-elevated rounded-lg p-3 border border-line-subtle">
-              <div className="text-xs text-gray-500 mb-1">Year Saved</div>
-              <div className={`text-sm font-bold ${yearStats.net >= 0 ? 'text-violet-400' : 'text-rose-400'}`}>
-                {yearStats.net < 0 && '−'}{formatCurrency(Math.abs(yearStats.net))}
-              </div>
-            </div>
-            <div className="bg-bg-elevated rounded-lg p-3 border border-line-subtle">
-              <div className="text-xs text-gray-500 mb-1">Avg / Month</div>
-              <div className="text-sm font-bold text-gray-300">
-                {yearStats.months > 0 ? formatCurrency(Math.round(yearStats.expense / yearStats.months)) : '—'}
-              </div>
-            </div>
-          </div>
-          <div className="mt-3 text-xs text-gray-600">
-            {yearStats.count} transactions across {yearStats.months} month{yearStats.months !== 1 ? 's' : ''}
-            {yearStats.income > 0 && ` · ${Math.round((yearStats.net / yearStats.income) * 100)}% saved`}
-          </div>
-        </div>
-
-        <div className="bg-bg-card border border-line-subtle rounded-xl p-5">
-          <h3 className="text-sm font-semibold text-white mb-4">Spending by Account</h3>
-          {accountBreakdown.length === 0 ? (
-            <p className="text-gray-500 text-sm text-center py-6">No expenses this month</p>
-          ) : (
-            <div className="space-y-3">
-              {accountBreakdown.map(acc => {
-                const pct = curExpense > 0 ? Math.round((acc.amount / curExpense) * 100) : 0
-                return (
-                  <div key={acc.id}>
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: acc.color }} />
-                        <span className="text-xs text-gray-400">{acc.name}</span>
-                      </div>
-                      <span className="text-xs font-medium text-gray-300">{formatCurrency(acc.amount)}</span>
-                    </div>
-                    <div className="h-1.5 bg-bg-elevated rounded-full overflow-hidden">
-                      <div className="h-full rounded-full transition-all duration-500"
-                        style={{ width: `${pct}%`, backgroundColor: acc.color }} />
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
         </div>
       </div>
 

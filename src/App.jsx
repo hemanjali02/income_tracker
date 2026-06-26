@@ -17,6 +17,7 @@ import Recurring from './components/Recurring'
 import Goals from './components/Goals'
 import Receivables from './components/Receivables'
 import Analysis from './components/Analysis'
+import Balances from './components/Balances'
 import AddTransactionModal from './components/AddTransactionModal'
 import Login from './components/Login'
 import Toasts from './components/Toast'
@@ -59,7 +60,7 @@ function AppShell() {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' })
     const labels = {
-      dashboard: 'Dashboard', analysis: 'Analysis',
+      dashboard: 'Dashboard', balances: 'Balances', analysis: 'Analysis',
       transactions: 'Transactions', recurring: 'Recurring', receivables: 'Receivables',
       investments: 'Investments', budgets: 'Budgets', goals: 'Goals',
       categories: 'Categories', accounts: 'Accounts',
@@ -127,6 +128,7 @@ function AppShell() {
               transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
             >
               {view === 'dashboard' && <Dashboard />}
+              {view === 'balances' && <Balances />}
               {view === 'analysis' && <Analysis />}
               {view === 'transactions' && <Transactions onAdd={() => openAdd()} />}
               {view === 'recurring' && <Recurring />}

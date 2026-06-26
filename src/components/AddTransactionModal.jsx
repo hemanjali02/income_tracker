@@ -15,7 +15,7 @@ function fieldCls(errorField, thisField) {
 }
 
 export default function AddTransactionModal({ onClose, editTx, defaultType }) {
-  const { categories, accounts, addTransaction, updateTransaction, addTransfer, updateTransfer, addReceivable } = useApp()
+  const { categories, accounts, transactions, addTransaction, updateTransaction, addTransfer, updateTransfer, addReceivable } = useApp()
 
   // Local visibility for exit animation
   const [visible, setVisible] = useState(true)
@@ -78,7 +78,40 @@ export default function AddTransactionModal({ onClose, editTx, defaultType }) {
     return editTx.transferDirection === 'in' ? editTx.accountId : (editTx.toAccountId || '')
   })
 
-  const filteredCats = categories.filter(c => c.type === type)
+  // Sort categories: most recently used first (per type), then alphabetical
+  const filteredCats = (() => {
+    const cats = categories.filter(c => c.type === type)
+    const lastUsedMap = {}
+    for (const tx of transactions) {
+      if (tx.type !== type || !tx.categoryId) continue
+      if (!lastUsedMap[tx.categoryId] || tx.date > lastUsedMap[tx.categoryId]) {
+        lastUsedMap[tx.categoryId] = tx.date
+      }
+    }
+    return [...cats].sort((a, b) => {
+      const la = lastUsedMap[a.id] || ''
+      const lb = lastUsedMap[b.id] || ''
+      if (la !== lb) return lb.localeCompare(la)
+      return a.name.localeCompare(b.name)
+    })
+  })()
+
+  // Sort accounts: most recently used first
+  const sortedAccounts = (() => {
+    const lastUsedMap = {}
+    for (const tx of transactions) {
+      if (!tx.accountId) continue
+      if (!lastUsedMap[tx.accountId] || tx.date > lastUsedMap[tx.accountId]) {
+        lastUsedMap[tx.accountId] = tx.date
+      }
+    }
+    return [...accounts].sort((a, b) => {
+      const la = lastUsedMap[a.id] || ''
+      const lb = lastUsedMap[b.id] || ''
+      if (la !== lb) return lb.localeCompare(la)
+      return a.name.localeCompare(b.name)
+    })
+  })()
 
   useEffect(() => { if (!editTx && type !== 'transfer') setCategoryId('') }, [type, editTx])
 
@@ -247,7 +280,7 @@ export default function AddTransactionModal({ onClose, editTx, defaultType }) {
                   <label className={labelCls}>From Account</label>
                   <select className={fieldCls(errorField, 'fromAccount')} value={fromAccountId} onChange={e => setFromAccountId(e.target.value)}>
                     <option value="">Select...</option>
-                    {accounts.map(a => (
+                    {sortedAccounts.map(a => (
                       <option key={a.id} value={a.id} disabled={a.id === toAccountId}>{a.name}</option>
                     ))}
                   </select>
@@ -261,7 +294,7 @@ export default function AddTransactionModal({ onClose, editTx, defaultType }) {
                   <label className={labelCls}>To Account</label>
                   <select className={fieldCls(errorField, 'toAccount')} value={toAccountId} onChange={e => setToAccountId(e.target.value)}>
                     <option value="">Select...</option>
-                    {accounts.map(a => (
+                    {sortedAccounts.map(a => (
                       <option key={a.id} value={a.id} disabled={a.id === fromAccountId}>{a.name}</option>
                     ))}
                   </select>
@@ -417,7 +450,7 @@ export default function AddTransactionModal({ onClose, editTx, defaultType }) {
                   <label className={labelCls}>Account</label>
                   <select className={fieldCls(errorField, 'account')} value={accountId} onChange={e => setAccountId(e.target.value)}>
                     <option value="">Select...</option>
-                    {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                    {sortedAccounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                   </select>
                 </div>
               </div>

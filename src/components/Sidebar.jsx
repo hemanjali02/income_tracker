@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { LayoutDashboard, ArrowLeftRight, Tag, Wallet, TrendingUp, Target, Menu, X, Database, HardDrive, LogOut, Briefcase, KeyRound, Eye, EyeOff, Repeat, Flag, HandCoins, LineChart } from 'lucide-react'
+import { LayoutDashboard, ArrowLeftRight, Tag, Wallet, TrendingUp, Target, Menu, X, Database, HardDrive, LogOut, Briefcase, KeyRound, Eye, EyeOff, Repeat, Flag, HandCoins, LineChart, Coins } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../context/AuthContext'
 import Modal from './Modal'
@@ -9,6 +9,7 @@ const navSections = [
     label: 'Overview',
     items: [
       { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { id: 'balances',  label: 'Balances',  icon: Coins },
       { id: 'analysis',  label: 'Analysis',  icon: LineChart },
     ],
   },

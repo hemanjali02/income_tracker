@@ -1,10 +1,11 @@
 import { useState, useMemo } from 'react'
-import { Plus, Pencil, Trash2, X, Check } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, Check, ChevronLeft, ArrowUpRight, ArrowDownRight } from 'lucide-react'
 import { useApp } from '../context/AppContext'
-import { generateId } from '../utils/helpers'
+import { generateId, formatCurrency, formatDate } from '../utils/helpers'
 import { inputSmCls, labelCls } from '../utils/styles'
 import ColorPicker from './ColorPicker'
 import ConfirmDialog from './ConfirmDialog'
+import AddTransactionModal from './AddTransactionModal'
 
 function CategoryInitial({ name, color }) {
   const letters = name.trim().split(/\s+/).slice(0, 2).map(w => w[0]?.toUpperCase() || '').join('')
@@ -69,16 +70,123 @@ function CategoryForm({ initial, onSave, onCancel }) {
   )
 }
 
+function CategoryDetail({ cat, transactions, accounts, onBack, onEdit, onDelete }) {
+  const [editTx, setEditTx] = useState(null)
+
+  const catTxs = useMemo(() =>
+    [...transactions.filter(t => t.categoryId === cat.id)]
+      .sort((a, b) => b.date.localeCompare(a.date)),
+    [transactions, cat.id]
+  )
+
+  const total = catTxs.reduce((s, t) => s + t.amount, 0)
+  const thisMonth = new Date().toISOString().slice(0, 7)
+  const monthTotal = catTxs.filter(t => t.date.startsWith(thisMonth)).reduce((s, t) => s + t.amount, 0)
+  const monthCount = catTxs.filter(t => t.date.startsWith(thisMonth)).length
+
+  return (
+    <div className="space-y-5 animate-in">
+      {editTx && <AddTransactionModal editTx={editTx} onClose={() => setEditTx(null)} />}
+
+      <div className="flex items-center gap-3">
+        <button onClick={onBack}
+          className="p-2 rounded-lg bg-bg-card border border-line-subtle text-gray-400 hover:text-white hover:border-line transition-colors">
+          <ChevronLeft size={15} />
+        </button>
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <CategoryInitial name={cat.name} color={cat.color} />
+          <div className="min-w-0">
+            <h2 className="text-lg font-bold text-white">{cat.name}</h2>
+            <p className="text-xs text-gray-500 capitalize">{cat.type} · {catTxs.length} transactions</p>
+          </div>
+        </div>
+        <div className="flex gap-1.5">
+          <button onClick={onEdit}
+            className="p-2 text-gray-500 hover:text-violet-400 hover:bg-violet-500/10 rounded-lg transition-colors">
+            <Pencil size={14} />
+          </button>
+          <button onClick={onDelete}
+            className="p-2 text-gray-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors">
+            <Trash2 size={14} />
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className="bg-bg-card border border-line-subtle rounded-xl p-4">
+          <div className="text-xs text-gray-500 mb-1">Total ({cat.type})</div>
+          <div className={`text-xl font-bold ${cat.type === 'income' ? 'text-emerald-400' : 'text-rose-400'}`}>
+            {formatCurrency(total)}
+          </div>
+        </div>
+        <div className="bg-bg-card border border-line-subtle rounded-xl p-4">
+          <div className="text-xs text-gray-500 mb-1">This Month</div>
+          <div className="text-xl font-bold text-white">{formatCurrency(monthTotal)}</div>
+          <div className="text-[11px] text-gray-500 mt-0.5">{monthCount} transactions</div>
+        </div>
+        <div className="col-span-2 sm:col-span-1 bg-bg-card border border-line-subtle rounded-xl p-4">
+          <div className="text-xs text-gray-500 mb-1">Average</div>
+          <div className="text-xl font-bold text-gray-300">
+            {catTxs.length > 0 ? formatCurrency(Math.round(total / catTxs.length)) : '—'}
+          </div>
+          <div className="text-[11px] text-gray-500 mt-0.5">per transaction</div>
+        </div>
+      </div>
+
+      {/* Transaction list */}
+      <div className="bg-bg-card border border-line-subtle rounded-xl overflow-hidden">
+        <div className="px-5 py-3 border-b border-line-subtle">
+          <h3 className="text-sm font-semibold text-white">All Transactions</h3>
+        </div>
+        {catTxs.length === 0 ? (
+          <div className="py-16 text-center text-gray-500 text-sm">No transactions in this category</div>
+        ) : (
+          <div className="divide-y divide-line-subtle">
+            {catTxs.map(tx => {
+              const account = accounts.find(a => a.id === tx.accountId)
+              return (
+                <button key={tx.id} onClick={() => setEditTx(tx)}
+                  className="w-full px-5 py-3 flex items-center gap-3 hover:bg-white/[0.02] transition-colors group text-left">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                    tx.type === 'income' ? 'bg-emerald-500/10' : 'bg-rose-500/10'
+                  }`}>
+                    {tx.type === 'income'
+                      ? <ArrowUpRight size={14} className="text-emerald-400" />
+                      : <ArrowDownRight size={14} className="text-rose-400" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-gray-200 truncate">{tx.name}</div>
+                    <div className="text-xs text-gray-500 mt-0.5">
+                      {formatDate(tx.date)}{account && ` · ${account.name}`}
+                    </div>
+                  </div>
+                  <div className={`text-sm font-bold flex-shrink-0 ${
+                    tx.type === 'income' ? 'text-emerald-400' : 'text-rose-400'
+                  }`}>
+                    {tx.type === 'income' ? '+' : '−'}{formatCurrency(tx.amount)}
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function CategoryManager() {
-  const { categories, transactions, addCategory, updateCategory, deleteCategory } = useApp()
+  const { categories, transactions, accounts, addCategory, updateCategory, deleteCategory } = useApp()
   const [adding, setAdding] = useState(false)
   const [editId, setEditId] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(null)
+  const [selectedCatId, setSelectedCatId] = useState(null)
+
+  const selectedCat = categories.find(c => c.id === selectedCatId)
 
   const expenses = categories.filter(c => c.type === 'expense')
   const incomes  = categories.filter(c => c.type === 'income')
 
-  // Count how many transactions use each category
   const usageMap = useMemo(() =>
     transactions.reduce((m, t) => {
       if (t.categoryId) m[t.categoryId] = (m[t.categoryId] || 0) + 1
@@ -101,8 +209,37 @@ export default function CategoryManager() {
   const deleteUsageCount = confirmDelete ? (usageMap[confirmDelete] || 0) : 0
 
   function confirmDel() {
-    if (confirmDelete) deleteCategory(confirmDelete)
+    if (confirmDelete) {
+      deleteCategory(confirmDelete)
+      if (selectedCatId === confirmDelete) setSelectedCatId(null)
+    }
     setConfirmDelete(null)
+  }
+
+  // Detail view
+  if (selectedCat && !editId) {
+    return (
+      <>
+        {confirmDelete && (
+          <ConfirmDialog title="Delete Category"
+            message={
+              deleteUsageCount > 0
+                ? `"${catToDelete?.name}" is used in ${deleteUsageCount} transaction${deleteUsageCount !== 1 ? 's' : ''}. They'll have no category after deletion.`
+                : `Delete "${catToDelete?.name}"? This cannot be undone.`
+            }
+            onConfirm={confirmDel}
+            onCancel={() => setConfirmDelete(null)} />
+        )}
+        <CategoryDetail
+          cat={selectedCat}
+          transactions={transactions}
+          accounts={accounts}
+          onBack={() => setSelectedCatId(null)}
+          onEdit={() => setEditId(selectedCat.id)}
+          onDelete={() => setConfirmDelete(selectedCat.id)}
+        />
+      </>
+    )
   }
 
   function renderGroup(label, list) {
@@ -117,7 +254,10 @@ export default function CategoryManager() {
                 {editId === cat.id ? (
                   <CategoryForm initial={cat} onSave={data => handleEdit(cat.id, data)} onCancel={() => setEditId(null)} />
                 ) : (
-                  <div className="flex items-center justify-between px-4 py-3 bg-bg-card rounded-xl border border-line-subtle group">
+                  <div
+                    onClick={() => setSelectedCatId(cat.id)}
+                    className="flex items-center justify-between px-4 py-3 bg-bg-card rounded-xl border border-line-subtle group cursor-pointer hover:border-line transition-colors"
+                  >
                     <div className="flex items-center gap-3">
                       <CategoryInitial name={cat.name} color={cat.color} />
                       <div>
@@ -129,7 +269,8 @@ export default function CategoryManager() {
                         </div>
                       </div>
                     </div>
-                    <div className="flex gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                    <div className="flex gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+                      onClick={e => e.stopPropagation()}>
                       <button onClick={() => setEditId(cat.id)}
                         className="p-1.5 text-gray-500 hover:text-purple-400 hover:bg-purple-500/10 rounded-lg transition-colors">
                         <Pencil size={13} />
@@ -159,7 +300,7 @@ export default function CategoryManager() {
           title="Delete Category"
           message={
             deleteUsageCount > 0
-              ? `"${catToDelete?.name}" is used in ${deleteUsageCount} transaction${deleteUsageCount !== 1 ? 's' : ''}. Those transactions will have no category after deletion.`
+              ? `"${catToDelete?.name}" is used in ${deleteUsageCount} transaction${deleteUsageCount !== 1 ? 's' : ''}. They'll have no category after deletion.`
               : `Delete "${catToDelete?.name}"? This cannot be undone.`
           }
           onConfirm={confirmDel}
@@ -170,7 +311,7 @@ export default function CategoryManager() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-bold text-white">Categories</h2>
-          <p className="text-sm text-gray-500 mt-0.5">Manage your income and expense categories</p>
+          <p className="text-sm text-gray-500 mt-0.5">Click a category to see its transactions</p>
         </div>
         <button onClick={() => { setAdding(true); setEditId(null) }}
           className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium rounded-lg transition-colors">

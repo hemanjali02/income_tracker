@@ -68,6 +68,10 @@ const accountSchema = new mongoose.Schema({
   color:          String,
   accountType:    String,             // bank | cash | wallet | credit
   openingBalance: { type: Number, default: 0 },  // baseline added to balance calc
+  // Credit card specific
+  creditLimit:    Number,             // total credit limit
+  cycleDay:       Number,             // day of month statement is generated (1-31)
+  dueDay:         Number,             // day of month payment is due (1-31)
 })
 export const Account = mongoose.model('Account', accountSchema)
 

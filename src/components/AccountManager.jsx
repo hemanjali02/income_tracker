@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { Plus, Pencil, Trash2, X, Check, CreditCard, ArrowLeftRight, ChevronLeft, ArrowUpRight, ArrowDownRight, Activity, Building2, Banknote, Wallet as WalletIcon } from 'lucide-react'
 import { useApp } from '../context/AppContext'
-import { generateId, formatCurrency, formatDate, formatCompact, getAccountBalance } from '../utils/helpers'
+import { generateId, formatCurrency, formatDate, formatCompact, getAccountBalance, getCurrentCreditCycle, getCreditCycleSpend } from '../utils/helpers'
 import { inputSmCls, labelCls } from '../utils/styles'
 import ColorPicker from './ColorPicker'
 import ConfirmDialog from './ConfirmDialog'
@@ -29,6 +29,9 @@ function AccountForm({ initial, onSave, onCancel }) {
   const [color, setColor] = useState(initial?.color || '#7c3aed')
   const [accountType, setAccountType] = useState(initial?.accountType || 'bank')
   const [openingBalance, setOpeningBalance] = useState(initial ? String(initial.openingBalance || 0) : '')
+  const [creditLimit, setCreditLimit] = useState(initial?.creditLimit ? String(initial.creditLimit) : '')
+  const [cycleDay, setCycleDay] = useState(initial?.cycleDay || 1)
+  const [dueDay, setDueDay] = useState(initial?.dueDay || 15)
   const [error, setError] = useState('')
 
   function submit(e) {
@@ -36,7 +39,15 @@ function AccountForm({ initial, onSave, onCancel }) {
     if (!name.trim()) return setError('Name is required')
     const opening = openingBalance === '' ? 0 : Number(openingBalance)
     if (isNaN(opening)) return setError('Opening balance must be a number')
-    onSave({ name: name.trim(), color, accountType, openingBalance: opening })
+    const data = { name: name.trim(), color, accountType, openingBalance: opening }
+    if (accountType === 'credit') {
+      const limit = Number(creditLimit)
+      if (!limit || limit <= 0) return setError('Enter your credit limit')
+      data.creditLimit = limit
+      data.cycleDay = Number(cycleDay)
+      data.dueDay = Number(dueDay)
+    }
+    onSave(data)
   }
 
   return (
@@ -59,14 +70,46 @@ function AccountForm({ initial, onSave, onCancel }) {
           ))}
         </div>
       </div>
-      <div>
-        <label className={labelCls}>Opening Balance (₹) <span className="text-gray-600 font-normal">— current balance to start from</span></label>
-        <input className={inputSmCls} type="number" step="0.01" value={openingBalance}
-          onChange={e => setOpeningBalance(e.target.value)} placeholder="0" />
-        <p className="text-[11px] text-gray-500 mt-1">
-          Use this to bring in your existing balance without back-dating transactions. Negative values allowed (e.g. credit card debt).
-        </p>
-      </div>
+      {accountType === 'credit' ? (
+        <>
+          <div>
+            <label className={labelCls}>Credit Limit (₹)</label>
+            <input className={inputSmCls} type="number" min="0" step="100" value={creditLimit}
+              onChange={e => setCreditLimit(e.target.value)} placeholder="e.g. 100000" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelCls}>Statement day</label>
+              <input className={inputSmCls} type="number" min="1" max="31" value={cycleDay}
+                onChange={e => setCycleDay(e.target.value)} />
+              <p className="text-[10px] text-gray-500 mt-1">Day of month bill is generated</p>
+            </div>
+            <div>
+              <label className={labelCls}>Payment due day</label>
+              <input className={inputSmCls} type="number" min="1" max="31" value={dueDay}
+                onChange={e => setDueDay(e.target.value)} />
+              <p className="text-[10px] text-gray-500 mt-1">Day of month to pay by</p>
+            </div>
+          </div>
+          <div>
+            <label className={labelCls}>Outstanding Balance (₹) <span className="text-gray-600 font-normal">— current dues</span></label>
+            <input className={inputSmCls} type="number" step="0.01" value={openingBalance}
+              onChange={e => setOpeningBalance(e.target.value)} placeholder="0 (negative if you owe)" />
+            <p className="text-[11px] text-gray-500 mt-1">
+              Use a negative number for unpaid dues (e.g. <code className="text-rose-400">-15000</code>).
+            </p>
+          </div>
+        </>
+      ) : (
+        <div>
+          <label className={labelCls}>Opening Balance (₹) <span className="text-gray-600 font-normal">— current balance to start from</span></label>
+          <input className={inputSmCls} type="number" step="0.01" value={openingBalance}
+            onChange={e => setOpeningBalance(e.target.value)} placeholder="0" />
+          <p className="text-[11px] text-gray-500 mt-1">
+            Use this to bring in your existing balance without back-dating transactions.
+          </p>
+        </div>
+      )}
       <div>
         <label className={labelCls}>Color</label>
         <ColorPicker value={color} onChange={setColor} />
@@ -384,6 +427,41 @@ export default function AccountManager({ onTransfer }) {
                       </div>
                     )}
                   </div>
+
+                  {/* Credit card cycle */}
+                  {acc.accountType === 'credit' && acc.creditLimit > 0 && (() => {
+                    const cycle = getCurrentCreditCycle(acc.cycleDay)
+                    const spent = getCreditCycleSpend(transactions, acc)
+                    const pct = Math.min(100, (spent / acc.creditLimit) * 100)
+                    const overLimit = spent > acc.creditLimit
+                    return (
+                      <div className="mt-4 p-3 bg-bg-elevated rounded-lg border border-line-subtle space-y-2">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-gray-400 font-medium">Current cycle</span>
+                          <span className={`font-semibold ${overLimit ? 'text-rose-400' : pct > 80 ? 'text-amber-400' : 'text-violet-300'}`}>
+                            {formatCurrency(spent)} <span className="text-gray-500 font-normal">/ {formatCurrency(acc.creditLimit)}</span>
+                          </span>
+                        </div>
+                        <div className="h-1.5 bg-bg-base rounded-full overflow-hidden">
+                          <div className="h-full rounded-full transition-all duration-500"
+                            style={{ width: `${pct}%`, backgroundColor: overLimit ? '#f43f5e' : pct > 80 ? '#f59e0b' : acc.color }} />
+                        </div>
+                        <div className="flex justify-between text-[11px] text-gray-500">
+                          <span>{cycle?.label}</span>
+                          <span>
+                            {overLimit
+                              ? <span className="text-rose-400">Over limit by {formatCurrency(spent - acc.creditLimit)}</span>
+                              : <span><span className="text-gray-300 font-medium">{formatCurrency(acc.creditLimit - spent)}</span> available</span>}
+                          </span>
+                        </div>
+                        {cycle && (
+                          <div className="text-[11px] text-gray-600 text-center pt-1 border-t border-line-subtle">
+                            {cycle.daysLeft > 0 ? `${cycle.daysLeft} day${cycle.daysLeft !== 1 ? 's' : ''} until statement` : 'Statement generates today'}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
 
                   <div className="mt-4 pt-3 border-t border-line-subtle flex items-center justify-between text-xs text-gray-500">
                     <span className="flex items-center gap-1.5">

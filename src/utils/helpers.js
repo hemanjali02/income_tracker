@@ -100,6 +100,44 @@ export function getDailyTotals(transactions, monthKey) {
     .map(([day, vals]) => ({ day: parseInt(day), ...vals }))
 }
 
+// Credit card billing cycle helpers
+// Given today's date and a statement-generation day, returns { start, end, daysLeft, label }
+// for the cycle the user is *currently inside*.
+export function getCurrentCreditCycle(cycleDay, today = new Date()) {
+  if (!cycleDay) return null
+  const day = today.getDate()
+  const y = today.getFullYear()
+  const m = today.getMonth()
+  let start, end
+  if (day >= cycleDay) {
+    // current cycle started this month on cycleDay, ends day before next month's cycleDay
+    start = new Date(y, m, cycleDay)
+    end   = new Date(y, m + 1, cycleDay - 1)
+  } else {
+    // current cycle started last month, ends day before this month's cycleDay
+    start = new Date(y, m - 1, cycleDay)
+    end   = new Date(y, m, cycleDay - 1)
+  }
+  const daysLeft = Math.ceil((end - today) / (1000 * 60 * 60 * 24))
+  return {
+    start: start.toISOString().slice(0, 10),
+    end: end.toISOString().slice(0, 10),
+    daysLeft,
+    label: `${start.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} – ${end.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`,
+  }
+}
+
+// Spend in current cycle for a credit-card account (expenses only, transfers excluded)
+export function getCreditCycleSpend(transactions, account) {
+  if (!account?.cycleDay) return 0
+  const cycle = getCurrentCreditCycle(account.cycleDay)
+  if (!cycle) return 0
+  return transactions
+    .filter(t => t.accountId === account.id && t.type === 'expense'
+      && t.date >= cycle.start && t.date <= cycle.end)
+    .reduce((s, t) => s + t.amount, 0)
+}
+
 // Pass the account object to include opening balance, or just the ID for tx-only sum
 export function getAccountBalance(transactions, accountOrId, openingBalance = 0) {
   const id = typeof accountOrId === 'object' && accountOrId !== null ? accountOrId.id : accountOrId
