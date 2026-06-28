@@ -53,8 +53,54 @@ export function AuthProvider({ children }) {
     addToast('Password changed successfully')
   }, [addToast])
 
+  const updateProfile = useCallback(async (data) => {
+    const updated = await api.updateProfile(data)
+    setUser(updated)
+    addToast('Profile updated')
+    return updated
+  }, [addToast])
+
+  const deleteAccount = useCallback(async (password) => {
+    await api.deleteAccount(password)
+    setUser(null)
+    addToast('Account deleted', 'info')
+  }, [addToast])
+
+  const signInWithGoogle = useCallback(async (credential) => {
+    const u = await api.googleSignIn(credential)
+    setUser(u)
+    addToast(`Welcome, ${u.displayName || u.username}!`)
+    return u
+  }, [addToast])
+
+  const linkGoogle = useCallback(async (credential) => {
+    const u = await api.linkGoogle(credential)
+    setUser(u)
+    addToast('Google account linked')
+    return u
+  }, [addToast])
+
+  const unlinkGoogle = useCallback(async () => {
+    const u = await api.unlinkGoogle()
+    setUser(u)
+    addToast('Google account unlinked', 'info')
+    return u
+  }, [addToast])
+
+  // Re-pull the current user (used after a payment changes the plan).
+  const refreshUser = useCallback(async (overrideUser) => {
+    if (overrideUser) { setUser(overrideUser); return overrideUser }
+    const me = await api.me()
+    setUser(me)
+    return me
+  }, [])
+
   return (
-    <AuthContext.Provider value={{ user, serverMode, ready, login, register, logout, changePassword }}>
+    <AuthContext.Provider value={{
+      user, serverMode, ready,
+      login, register, logout, changePassword,
+      updateProfile, deleteAccount, signInWithGoogle, linkGoogle, unlinkGoogle, refreshUser,
+    }}>
       {children}
     </AuthContext.Provider>
   )

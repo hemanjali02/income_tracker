@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, ArrowLeftRight, Users } from 'lucide-react'
 import { useApp } from '../context/AppContext'
+import { useBilling } from '../context/BillingContext'
 import { generateId } from '../utils/helpers'
 import { labelCls } from '../utils/styles'
+import ProBadge from './billing/ProBadge'
 
 const inputCls = `w-full bg-bg-input border border-line-subtle rounded-lg px-3 py-2.5 text-sm text-white
   placeholder-gray-500 focus:outline-none focus:border-violet-500 focus:bg-bg-elevated
@@ -16,6 +18,7 @@ function fieldCls(errorField, thisField) {
 
 export default function AddTransactionModal({ onClose, editTx, defaultType }) {
   const { categories, accounts, transactions, addTransaction, updateTransaction, addTransfer, updateTransfer, addReceivable } = useApp()
+  const { can, promptUpgrade } = useBilling()
 
   // Local visibility for exit animation
   const [visible, setVisible] = useState(true)
@@ -329,11 +332,13 @@ export default function AddTransactionModal({ onClose, editTx, defaultType }) {
                 <div className="flex items-center justify-between mb-1.5">
                   <label className={labelCls.replace(' mb-1.5', '')}>Amount (₹)</label>
                   {type === 'expense' && !editTx && (
-                    <button type="button" onClick={() => setShowSplit(s => !s)}
+                    <button type="button"
+                      onClick={() => can('splitExpenses') ? setShowSplit(s => !s) : promptUpgrade('splitExpenses')}
                       className={`flex items-center gap-1 text-[11px] font-medium transition-colors ${
                         showSplit ? 'text-violet-300' : 'text-gray-500 hover:text-violet-400'
                       }`}>
                       <Users size={11} /> {showSplit ? 'Cancel split' : 'Split with others'}
+                      {!can('splitExpenses') && <ProBadge size="xs" />}
                     </button>
                   )}
                 </div>

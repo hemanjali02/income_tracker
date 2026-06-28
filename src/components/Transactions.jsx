@@ -9,6 +9,8 @@ import AddTransactionModal from './AddTransactionModal'
 import ConfirmDialog from './ConfirmDialog'
 import BankImportModal from './BankImportModal'
 import TransactionCalendar from './TransactionCalendar'
+import ProBadge from './billing/ProBadge'
+import { useBilling } from '../context/BillingContext'
 
 const PAGE_SIZE = 20
 
@@ -39,6 +41,7 @@ function SortIndicator({ active, dir }) {
 export default function Transactions({ onAdd }) {
   const { transactions, categories, accounts, deleteTransaction, addTransaction, bulkDeleteTransactions } = useApp()
   const { addToast } = useToast()
+  const { can, promptUpgrade } = useBilling()
   const [search, setSearch] = useState('')
   const [filterType, setFilterType] = useState('all')
   const [filterCat, setFilterCat] = useState('')
@@ -256,8 +259,10 @@ export default function Transactions({ onAdd }) {
             <CalendarDays size={13} />
           </button>
         </div>
-        <button onClick={() => setShowBankImport(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-violet-500/30 bg-violet-500/10 text-violet-300 hover:bg-violet-500/15 text-sm transition-colors" title="Import bank PDF">
+        <button onClick={() => can('pdfImport') ? setShowBankImport(true) : promptUpgrade('pdfImport')}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-violet-500/30 bg-violet-500/10 text-violet-300 hover:bg-violet-500/15 text-sm transition-colors" title="Import bank PDF">
           <FileText size={14} /> <span className="hidden sm:inline">Bank PDF</span>
+          {!can('pdfImport') && <ProBadge size="xs" />}
         </button>
         <button onClick={handleExport} className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-line-subtle bg-bg-card text-gray-400 hover:text-gray-200 text-sm transition-colors" title="Export CSV">
           <Download size={14} /> <span className="hidden sm:inline">Export</span>
