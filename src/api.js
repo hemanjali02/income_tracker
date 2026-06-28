@@ -178,6 +178,16 @@ export const api = {
     return res.user
   },
 
+  async linkGoogle(credential) {
+    const res = await apiCall('/auth/link-google', { method: 'POST', body: JSON.stringify({ credential }) })
+    return res.user
+  },
+
+  async unlinkGoogle() {
+    const res = await apiCall('/auth/unlink-google', { method: 'POST' })
+    return res.user
+  },
+
   // Billing
   async billingConfig() {
     try { return await apiCall('/billing/config') }

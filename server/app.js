@@ -77,6 +77,7 @@ async function requireAuth(req, res, next) {
 function safeUser(u) {
   if (!u) return null
   const { passwordHash, passwordSalt, _id, __v, ...rest } = u
+  rest.hasPassword = !!passwordHash
   return rest
 }
 
@@ -282,6 +283,60 @@ app.post('/api/auth/google', async (req, res) => {
     const token = generateToken()
     await Session.create({ token, userId: user.id })
     res.json({ token, user: safeUser(user.toObject ? user.toObject() : user) })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// Link a Google account to the currently signed-in user, so manually-created
+// users can sign in with Google later and keep all their existing data.
+app.post('/api/auth/link-google', requireAuth, async (req, res) => {
+  try {
+    const { credential } = req.body || {}
+    if (!credential) return res.status(400).json({ error: 'Missing Google credential' })
+    if (!process.env.GOOGLE_CLIENT_ID) return res.status(500).json({ error: 'Google sign in not configured on server' })
+
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    })
+    const payload = ticket.getPayload()
+    if (!payload?.email_verified) return res.status(401).json({ error: 'Google email not verified' })
+
+    const googleSub = payload.sub
+
+    // Refuse if this Google identity already belongs to a different account.
+    const taken = await User.findOne({ googleId: googleSub }).lean()
+    if (taken && taken.id !== req.userId) {
+      return res.status(409).json({ error: 'This Google account is already linked to another user' })
+    }
+    if (req.user.googleId && req.user.googleId !== googleSub) {
+      return res.status(409).json({ error: 'Your account is already linked to a different Google account' })
+    }
+
+    await User.updateOne({ id: req.userId }, {
+      googleId: googleSub,
+      email: req.user.email || payload.email,
+    })
+    const fresh = await User.findOne({ id: req.userId }).lean()
+    res.json({ user: safeUser(fresh) })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// Unlink Google — only allowed when the user still has a password, otherwise
+// removing the link would leave them with no way to sign in.
+app.post('/api/auth/unlink-google', requireAuth, async (req, res) => {
+  try {
+    const user = await User.findOne({ id: req.userId })
+    if (!user.googleId) return res.status(400).json({ error: 'No Google account is linked' })
+    if (!user.passwordHash) {
+      return res.status(400).json({ error: 'Set a password before unlinking, or you would be locked out' })
+    }
+    await User.updateOne({ id: req.userId }, { $unset: { googleId: '' } })
+    const fresh = await User.findOne({ id: req.userId }).lean()
+    res.json({ user: safeUser(fresh) })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { LayoutDashboard, ArrowLeftRight, Tag, Wallet, TrendingUp, Target, Menu, X, Database, HardDrive, LogOut, Briefcase, KeyRound, Eye, EyeOff, Repeat, Flag, HandCoins, LineChart, Coins, User, Trash2, AlertTriangle, Sparkles } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { GoogleLogin } from '@react-oauth/google'
 import { useAuth } from '../context/AuthContext'
 import { useBilling } from '../context/BillingContext'
 import { PRO_VIEWS } from '../config/plans'
@@ -43,6 +44,8 @@ const navSections = [
 
 const inputCls = `w-full bg-bg-input border border-line-subtle rounded-lg px-3 py-2 text-sm text-white
   placeholder-gray-500 focus:outline-none focus:border-violet-500 transition-colors`
+
+const labelCls = 'block text-xs text-gray-400 mb-1.5'
 
 function ChangePasswordModal({ onClose }) {
   const { changePassword } = useAuth()
@@ -143,13 +146,31 @@ function ChangePasswordModal({ onClose }) {
   )
 }
 
+const HAS_GOOGLE = !!import.meta.env.VITE_GOOGLE_CLIENT_ID
+
 function ProfileModal({ onClose }) {
-  const { user, updateProfile } = useAuth()
+  const { user, updateProfile, linkGoogle, unlinkGoogle } = useAuth()
   const { plan, isPro, cancelSubscription, busy, promptUpgrade } = useBilling()
   const [username, setUsername] = useState(user?.username || '')
   const [displayName, setDisplayName] = useState(user?.displayName || '')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [googleMsg, setGoogleMsg] = useState('')
+  const [googleBusy, setGoogleBusy] = useState(false)
+
+  async function handleLinkGoogle(credential) {
+    setGoogleMsg(''); setGoogleBusy(true)
+    try { await linkGoogle(credential) }
+    catch (err) { setGoogleMsg(err.message || 'Could not link Google account') }
+    finally { setGoogleBusy(false) }
+  }
+
+  async function handleUnlinkGoogle() {
+    setGoogleMsg(''); setGoogleBusy(true)
+    try { await unlinkGoogle() }
+    catch (err) { setGoogleMsg(err.message || 'Could not unlink Google account') }
+    finally { setGoogleBusy(false) }
+  }
 
   async function submit(e) {
     e.preventDefault()
@@ -198,6 +219,49 @@ function ProfileModal({ onClose }) {
             Cancel
           </button>
         </div>
+
+        {/* Connected accounts — let manual users link Google and keep their data */}
+        {HAS_GOOGLE && (
+          <div className="pt-3 mt-1 border-t border-line-subtle">
+            <div className="text-xs text-gray-500 mb-2">Sign-in methods</div>
+            {user?.googleId ? (
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-sm text-white">
+                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-emerald-500/15 text-emerald-400 text-xs font-bold">G</span>
+                  <div>
+                    <div className="text-xs font-medium">Google connected</div>
+                    {user.email && <div className="text-[11px] text-gray-500">{user.email}</div>}
+                  </div>
+                </div>
+                {user.hasPassword && (
+                  <button type="button" onClick={handleUnlinkGoogle} disabled={googleBusy}
+                    className="text-xs text-gray-500 hover:text-rose-400 transition-colors disabled:opacity-50">
+                    {googleBusy ? '…' : 'Unlink'}
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-[11px] text-gray-500">
+                  Link your Google account so you can also sign in with Google — your existing data stays exactly as it is.
+                </p>
+                <div className={googleBusy ? 'opacity-50 pointer-events-none' : ''}>
+                  <GoogleLogin
+                    theme="filled_black"
+                    shape="pill"
+                    text="continue_with"
+                    size="medium"
+                    onSuccess={(resp) => handleLinkGoogle(resp.credential)}
+                    onError={() => setGoogleMsg('Google sign in failed')}
+                  />
+                </div>
+              </div>
+            )}
+            {googleMsg && (
+              <div className="text-rose-400 text-[11px] bg-rose-500/10 border border-rose-500/20 rounded-lg px-3 py-2 mt-2">{googleMsg}</div>
+            )}
+          </div>
+        )}
 
         {/* Plan management */}
         <div className="pt-3 mt-1 border-t border-line-subtle">
