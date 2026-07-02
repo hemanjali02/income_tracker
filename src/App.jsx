@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Routes, Route } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { RefreshCw } from 'lucide-react'
 import { ToastProvider } from './context/ToastContext'
 import usePullToRefresh from './hooks/usePullToRefresh'
@@ -127,14 +127,14 @@ function AppShell() {
         </div>
 
         <div className="px-4 sm:px-8 py-6">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={view}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
-            >
+          {/* Keyed motion.div (no AnimatePresence): remounts with an entrance
+              animation on every view change and can never wedge on a stuck exit. */}
+          <motion.div
+            key={view}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }}
+          >
               {view === 'dashboard' && <Dashboard />}
               {view === 'balances' && <Balances />}
               {view === 'analysis' && (can('analysis') ? <Analysis /> : <LockedView feature="analysis" />)}
@@ -147,7 +147,6 @@ function AppShell() {
               {view === 'categories' && <CategoryManager />}
               {view === 'accounts' && <AccountManager onTransfer={() => openAdd('transfer')} />}
             </motion.div>
-          </AnimatePresence>
         </div>
       </main>
 

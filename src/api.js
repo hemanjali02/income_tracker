@@ -119,6 +119,7 @@ const recs = resource('recurring', 'it_recurring')
 const gls  = resource('goals', 'it_goals')
 const rcvs = resource('receivables', 'it_receivables')
 const nws  = resource('networthsnapshots', 'it_networthsnapshots')
+const emis = resource('emis', 'it_emis')
 
 export const api = {
   async isServerMode() { return checkServer() },
@@ -280,4 +281,10 @@ export const api = {
   // Net Worth Snapshots
   getNetWorthSnapshots: () => nws.list(),
   addNetWorthSnapshot: (s) => nws.create(s),
+
+  // EMIs
+  getEmis: () => emis.list(),
+  addEmi: (e) => emis.create(e),
+  updateEmi: (id, data) => emis.update(id, data),
+  deleteEmi: (id) => emis.remove(id),
 }

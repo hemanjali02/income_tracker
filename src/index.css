@@ -16,9 +16,17 @@ html, body {
 }
 
 body {
-  background-image: radial-gradient(ellipse 80% 40% at 50% -10%, rgba(139, 92, 246, 0.08), transparent 70%);
+  /* Layered mesh: violet crown + faint teal floor gives the dark theme depth */
+  background-image:
+    radial-gradient(ellipse 80% 40% at 50% -10%, rgba(139, 92, 246, 0.10), transparent 70%),
+    radial-gradient(ellipse 60% 35% at 85% 110%, rgba(6, 182, 212, 0.05), transparent 70%);
   background-attachment: fixed;
   min-height: 100vh;
+}
+
+::selection {
+  background: rgba(139, 92, 246, 0.35);
+  color: #fff;
 }
 
 /* Visible caret on all inputs */
@@ -29,7 +37,7 @@ input, select, textarea {
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: #0d0d18; }
 ::-webkit-scrollbar-thumb { background: #1a1a2e; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #252540; }
+::-webkit-scrollbar-thumb:hover { background: #4c3a8a; }
 
 input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(1) opacity(0.45);
@@ -91,17 +99,55 @@ input[type="checkbox"]:checked::after {
 }
 
 .gradient-text {
-  background: linear-gradient(135deg, #c4b5fd 0%, #a78bfa 50%, #8b5cf6 100%);
+  background: linear-gradient(120deg, #c4b5fd 0%, #a78bfa 40%, #22d3ee 70%, #c4b5fd 100%);
+  background-size: 220% auto;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
+  animation: textShimmer 6s linear infinite;
+}
+@keyframes textShimmer {
+  to { background-position: -220% center; }
 }
 
+/* Primary button with a light sweep on hover */
 .btn-primary {
   background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
   transition: all 0.15s;
+  position: relative;
+  overflow: hidden;
+}
+.btn-primary::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, 0.25) 50%, transparent 60%);
+  transform: translateX(-120%);
+  transition: transform 0.6s ease;
+  pointer-events: none;
 }
 .btn-primary:hover {
   background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%);
   box-shadow: 0 8px 24px -8px rgba(139, 92, 246, 0.5);
 }
+.btn-primary:hover::after {
+  transform: translateX(120%);
+}
+
+/* Card that gains a soft violet halo on hover */
+.glow-card {
+  transition: border-color 0.2s ease, box-shadow 0.25s ease, transform 0.2s ease;
+}
+.glow-card:hover {
+  border-color: rgba(139, 92, 246, 0.35);
+  box-shadow:
+    0 0 0 1px rgba(139, 92, 246, 0.12),
+    0 12px 32px -14px rgba(139, 92, 246, 0.35);
+}
+
+/* Gentle pulse for streak / attention chips */
+@keyframes softPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.65; }
+}
+.soft-pulse { animation: softPulse 2.2s ease-in-out infinite; }

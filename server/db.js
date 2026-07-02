@@ -160,6 +160,22 @@ const receivableSchema = new mongoose.Schema({
 })
 export const Receivable = mongoose.model('Receivable', receivableSchema)
 
+// EMIs — installment purchases on credit cards
+const emiSchema = new mongoose.Schema({
+  id:           { type: String, required: true, unique: true },
+  userId:       { type: String, required: true, index: true },
+  accountId:    String,   // credit-card account this EMI lives on
+  name:         String,   // what was bought
+  principal:    Number,   // purchase amount
+  months:       Number,   // tenure
+  interestRate: { type: Number, default: 0 }, // annual %, 0 = no-cost EMI
+  startDate:    String,   // first installment date (YYYY-MM-DD)
+  notes:        String,
+  closed:       { type: Boolean, default: false }, // pre-closed / finished
+  createdAt:    { type: String, default: () => new Date().toISOString() },
+})
+export const Emi = mongoose.model('Emi', emiSchema)
+
 // Net worth snapshots — for history chart
 const netWorthSnapshotSchema = new mongoose.Schema({
   id:           { type: String, required: true, unique: true },
@@ -182,6 +198,7 @@ export const models = {
   goals:        Goal,
   receivables:  Receivable,
   networthsnapshots: NetWorthSnapshot,
+  emis:         Emi,
 }
 
 // ─── Default data seeding ───────────────────────────────

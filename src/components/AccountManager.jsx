@@ -9,6 +9,7 @@ import ColorPicker from './ColorPicker'
 import ProBadge from './billing/ProBadge'
 import ConfirmDialog from './ConfirmDialog'
 import AddTransactionModal from './AddTransactionModal'
+import EmiSection from './EmiSection'
 
 export const ACCOUNT_TYPES = [
   { id: 'bank',   label: 'Bank',        icon: Building2  },
@@ -212,6 +213,9 @@ function AccountDetail({ acc, transactions, categories, accounts, onBack, onEdit
           </div>
         </div>
       </div>
+
+      {/* EMIs (credit cards only) */}
+      {acc.accountType === 'credit' && <EmiSection account={acc} />}
 
       {/* Transaction list */}
       <div className="bg-bg-card border border-line-subtle rounded-xl overflow-hidden">

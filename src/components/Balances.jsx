@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { Landmark, TrendingUp, CreditCard, HandCoins, AlertCircle, Wallet, Building2, Banknote, Wallet as WalletIcon } from 'lucide-react'
 import { useApp } from '../context/AppContext'
-import { formatCurrency, getAccountBalance, getCurrentCreditCycle, getCreditCycleSpend } from '../utils/helpers'
+import { formatCurrency, getAccountBalance, getCurrentCreditCycle, getCreditCycleSpend, emiProgress } from '../utils/helpers'
 import AnimatedNumber from './AnimatedNumber'
 
 const ACCOUNT_ICON_MAP = {
@@ -29,7 +29,7 @@ function StatCard({ label, value, sub, icon: Icon, color, valueColor }) {
 }
 
 export default function Balances() {
-  const { accounts, transactions, investments, receivables } = useApp()
+  const { accounts, transactions, investments, receivables, emis } = useApp()
 
   const data = useMemo(() => {
     // Per-account balance, separating credit-card (debt) from assets
@@ -37,9 +37,11 @@ export default function Balances() {
     const assetAccounts  = accounts.filter(a => a.accountType !== 'credit')
 
     const assetTotal = assetAccounts.reduce((s, a) => s + getAccountBalance(transactions, a), 0)
+    // Signed sum of credit balances: negative means you owe. Using the signed
+    // value keeps net worth identical to the header pill and Dashboard card,
+    // which simply sum every account balance.
+    const creditNet = creditAccounts.reduce((s, a) => s + getAccountBalance(transactions, a), 0)
     const creditOutstanding = creditAccounts.reduce((s, a) => {
-      // Credit card "balance" in our model is negative when you owe (opening balance + expenses out)
-      // Outstanding = -1 * (negative balance), or 0 if positive
       const bal = getAccountBalance(transactions, a)
       return s + (bal < 0 ? Math.abs(bal) : 0)
     }, 0)
@@ -52,8 +54,8 @@ export default function Balances() {
     // Cash position (liquid only — accounts that aren't credit)
     const cashPosition = assetTotal
 
-    // Net worth excluding investments
-    const netWorthExclInv = cashPosition - creditOutstanding
+    // Net worth = signed sum of every account (assets + credit), matching all other pages
+    const netWorthExclInv = assetTotal + creditNet
     // Net worth including investments
     const netWorthInclInv = netWorthExclInv + investmentTotal
     // Accessible total including pending receivables (best case)
@@ -75,11 +77,16 @@ export default function Balances() {
       const limit = acc.creditLimit || 0
       const available = Math.max(0, limit - spent)
       const pct = limit > 0 ? Math.min(100, (spent / limit) * 100) : 0
+      const activeEmis = emis
+        .filter(e => e.accountId === acc.id)
+        .map(e => emiProgress(e))
+        .filter(e => !e.done)
+      const emiMonthly = activeEmis.reduce((s, e) => s + e.installment, 0)
       const balance = getAccountBalance(transactions, acc)
       const outstanding = balance < 0 ? Math.abs(balance) : 0
-      return { acc, cycle, spent, limit, available, pct, outstanding }
+      return { acc, cycle, spent, limit, available, pct, outstanding, emiMonthly, emiCount: activeEmis.length }
     }),
-    [data.creditAccounts, transactions]
+    [data.creditAccounts, transactions, emis]
   )
 
   return (
@@ -92,7 +99,7 @@ export default function Balances() {
 
       {/* Hero cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-        <div className="bg-gradient-to-br from-violet-500/10 via-violet-500/5 to-transparent border border-violet-500/30 rounded-2xl p-5">
+        <div className="glow-card bg-gradient-to-br from-violet-500/10 via-violet-500/5 to-transparent border border-violet-500/30 rounded-2xl p-5">
           <div className="flex items-center gap-2 mb-1">
             <Landmark size={14} className="text-violet-400" />
             <span className="text-xs uppercase tracking-wider text-violet-300 font-semibold">Net Worth (incl. investments)</span>
@@ -215,7 +222,7 @@ export default function Balances() {
             <CreditCard size={14} className="text-rose-400" /> Credit Cards
           </h3>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-            {cardInsights.map(({ acc, cycle, spent, limit, available, pct, outstanding }) => {
+            {cardInsights.map(({ acc, cycle, spent, limit, available, pct, outstanding, emiMonthly, emiCount }) => {
               const overLimit = limit > 0 && spent > limit
               const nearLimit = pct > 80
               return (
@@ -277,6 +284,11 @@ export default function Balances() {
                       {outstanding > 0 && outstanding !== spent && (
                         <div className="text-[11px] text-rose-400 mt-2 text-center">
                           Last statement outstanding: {formatCurrency(outstanding)}
+                        </div>
+                      )}
+                      {emiMonthly > 0 && (
+                        <div className="text-[11px] text-cyan-300 mt-2 text-center">
+                          {emiCount} active EMI{emiCount !== 1 ? 's' : ''} · {formatCurrency(Math.round(emiMonthly))}/mo committed
                         </div>
                       )}
                     </>

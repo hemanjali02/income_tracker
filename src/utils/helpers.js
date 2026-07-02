@@ -61,7 +61,9 @@ export function groupByMonth(transactions) {
 }
 
 export function getMonthlyTotals(transactions) {
-  const groups = groupByMonth(transactions)
+  // Transfers are internal movements; exclude their legs so month buckets and
+  // sums stay identical no matter which page computes them.
+  const groups = groupByMonth(transactions.filter(t => t.type !== 'transfer'))
   return Object.entries(groups)
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([key, txs]) => ({
@@ -136,6 +138,43 @@ export function getCreditCycleSpend(transactions, account) {
     .filter(t => t.accountId === account.id && t.type === 'expense'
       && t.date >= cycle.start && t.date <= cycle.end)
     .reduce((s, t) => s + t.amount, 0)
+}
+
+// ─── EMI math ────────────────────────────────────────────
+// Standard reducing-balance EMI. rate is annual %, 0 means no-cost EMI.
+export function emiInstallment(principal, annualRatePct, months) {
+  if (!principal || !months) return 0
+  const r = (annualRatePct || 0) / 12 / 100
+  if (r === 0) return principal / months
+  const f = Math.pow(1 + r, months)
+  return (principal * r * f) / (f - 1)
+}
+
+// Derived numbers for an EMI record as of `today`.
+export function emiProgress(emi, today = new Date()) {
+  const installment = emiInstallment(emi.principal, emi.interestRate, emi.months)
+  const totalPayable = installment * emi.months
+  const totalInterest = totalPayable - emi.principal
+
+  const start = new Date(emi.startDate)
+  // Installments are considered paid on the same day-of-month as startDate.
+  let paid = (today.getFullYear() - start.getFullYear()) * 12 + (today.getMonth() - start.getMonth())
+  if (today.getDate() >= start.getDate()) paid += 1
+  paid = Math.max(0, Math.min(emi.months, paid))
+  if (emi.closed) paid = emi.months
+
+  const remaining = emi.months - paid
+  return {
+    installment,
+    totalPayable,
+    totalInterest,
+    paidMonths: paid,
+    remainingMonths: remaining,
+    paidAmount: installment * paid,
+    outstanding: installment * remaining,
+    pct: (paid / emi.months) * 100,
+    done: remaining <= 0,
+  }
 }
 
 // Pass the account object to include opening balance, or just the ID for tx-only sum

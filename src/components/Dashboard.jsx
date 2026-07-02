@@ -26,7 +26,7 @@ function SummaryCard({ label, value, sub, icon: Icon, color, trend, valueColor, 
       whileTap={onClick ? { scale: 0.98 } : undefined}
       transition={{ type: 'spring', stiffness: 300, damping: 22 }}
       onClick={onClick}
-      className={`bg-bg-card border border-line-subtle rounded-xl p-4 sm:p-5 hover:border-line transition-colors ${onClick ? 'cursor-pointer' : ''}`}
+      className={`glow-card bg-bg-card border border-line-subtle rounded-xl p-4 sm:p-5 ${onClick ? 'cursor-pointer' : ''}`}
     >
       <div className="flex items-start justify-between mb-3">
         <div className="w-10 h-10 rounded-xl flex items-center justify-center"
@@ -113,11 +113,13 @@ export default function Dashboard() {
   const prevExpense = prevTxs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
   const netBalance = curIncome - curExpense
 
-  // Total net worth across all accounts
-  const totalNetWorth = useMemo(() =>
-    accounts.reduce((sum, acc) => sum + getAccountBalance(transactions, acc), 0),
-    [accounts, transactions]
-  )
+  // Total net worth = all account balances + investment value.
+  // Must match BalancesQuickAccess, Balances page and NetWorthHistoryModal.
+  const totalNetWorth = useMemo(() => {
+    const accountSum = accounts.reduce((sum, acc) => sum + getAccountBalance(transactions, acc), 0)
+    const investmentSum = investments.reduce((s, i) => s + (i.currentValue || 0), 0)
+    return accountSum + investmentSum
+  }, [accounts, transactions, investments])
 
   function pctChange(cur, prev) {
     if (!prev) return null

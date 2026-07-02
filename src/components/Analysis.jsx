@@ -7,9 +7,20 @@ import {
   TrendingUp, TrendingDown, Calendar, Store, Activity, Heart, PiggyBank,
   Repeat, Zap, ArrowDownRight, ArrowUpRight, Flame,
 } from 'lucide-react'
+import { motion } from 'framer-motion'
 import { useApp } from '../context/AppContext'
-import { formatCurrency, formatCompact, getMonthlyTotals } from '../utils/helpers'
+import { formatCurrency, formatCompact, getMonthlyTotals, getAccountBalance } from '../utils/helpers'
 import AnimatedNumber from './AnimatedNumber'
+
+// Shared stagger presets for card grids
+const gridStagger = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.06 } },
+}
+const cardRise = {
+  hidden: { opacity: 0, y: 14, scale: 0.98 },
+  show: { opacity: 1, y: 0, scale: 1, transition: { type: 'spring', stiffness: 260, damping: 24 } },
+}
 
 function ChartTooltip({ active, payload, label, currency = true }) {
   if (!active || !payload?.length) return null
@@ -41,7 +52,7 @@ const RANGES = [
 
 function StatCard({ label, value, sub, icon: Icon, color }) {
   return (
-    <div className="bg-bg-card border border-line-subtle rounded-xl p-4">
+    <div className="glow-card bg-bg-card border border-line-subtle rounded-xl p-4">
       <div className="flex items-center gap-2 mb-2">
         <div className="w-7 h-7 rounded-lg flex items-center justify-center"
           style={{ backgroundColor: color + '18', border: `1px solid ${color}25` }}>
@@ -56,7 +67,7 @@ function StatCard({ label, value, sub, icon: Icon, color }) {
 }
 
 export default function Analysis() {
-  const { transactions, categories } = useApp()
+  const { transactions, categories, accounts } = useApp()
   const [range, setRange] = useState('6m')
 
   const rangeStart = useMemo(() => {
@@ -226,6 +237,89 @@ export default function Analysis() {
 
   const recurringTotal = detectedRecurring.reduce((s, r) => s + r.monthly, 0)
 
+  // ── Money runway: how long liquid cash lasts at the current burn rate ──
+  const runway = useMemo(() => {
+    const liquid = accounts
+      .filter(a => a.accountType !== 'credit')
+      .reduce((s, a) => s + getAccountBalance(transactions, a), 0)
+    if (expenseTxs.length === 0) return { liquid, days: null }
+    const dates = expenseTxs.map(t => t.date).sort()
+    const first = new Date(dates[0])
+    const spanDays = Math.max(1, Math.round((Date.now() - first.getTime()) / 86400000))
+    const dailyBurn = totals.expense / spanDays
+    const days = dailyBurn > 0 ? Math.floor(Math.max(0, liquid) / dailyBurn) : null
+    return { liquid, dailyBurn, days }
+  }, [accounts, transactions, expenseTxs, totals.expense])
+
+  // ── No-spend days in range + current streak ──
+  const noSpend = useMemo(() => {
+    if (expenseTxs.length === 0) return null
+    const spendDays = new Set(expenseTxs.map(t => t.date))
+    const first = [...spendDays].sort()[0]
+    const start = new Date(rangeStart > first ? rangeStart : first)
+    const today = new Date()
+    let zero = 0, total = 0
+    for (let d = new Date(start); d <= today; d.setDate(d.getDate() + 1)) {
+      total++
+      if (!spendDays.has(d.toISOString().slice(0, 10))) zero++
+    }
+    // Current streak: consecutive days ending today without an expense
+    let streak = 0
+    for (let d = new Date(today); ; d.setDate(d.getDate() - 1)) {
+      if (spendDays.has(d.toISOString().slice(0, 10))) break
+      streak++
+      if (streak > 365) break
+    }
+    return { zero, total, streak }
+  }, [expenseTxs, rangeStart])
+
+  // ── Spending personality (a bit of fun, grounded in the data) ──
+  const personality = useMemo(() => {
+    if (expenseTxs.length < 8) return null
+    const recurringShare = totals.expense > 0 ? (recurringTotal * totals.months) / totals.expense : 0
+    const largestShare = totals.largest && totals.expense > 0 ? totals.largest.amount / totals.expense : 0
+    const exp = monthlyTrend.map(m => m.expense)
+    const mean = exp.reduce((s, v) => s + v, 0) / Math.max(1, exp.length)
+    const cv = mean > 0 ? Math.sqrt(exp.reduce((s, v) => s + (v - mean) ** 2, 0) / exp.length) / mean : 0
+
+    if (totals.savingsRate >= 40) return { emoji: '🥷', name: 'Silent Saver', blurb: 'Money comes in, very little leaves. Impressive discipline.' }
+    if (largestShare >= 0.3) return { emoji: '🎯', name: 'Big-Ticket Buyer', blurb: 'A few large purchases define your spending, not daily leaks.' }
+    if (recurringShare >= 0.35) return { emoji: '📦', name: 'Subscription Collector', blurb: 'A big slice of your spending renews itself every month.' }
+    if (weekSplit.weekendPct >= 45) return { emoji: '🎉', name: 'Weekend Warrior', blurb: 'Weekdays are quiet. Weekends are when the wallet opens.' }
+    if (cv < 0.25 && exp.length >= 3) return { emoji: '🧘', name: 'Steady Eddie', blurb: 'Your spending barely moves month to month. Very predictable.' }
+    return { emoji: '⚖️', name: 'Balanced Spender', blurb: 'No single habit dominates. A healthy mix overall.' }
+  }, [expenseTxs.length, totals, recurringTotal, monthlyTrend, weekSplit])
+
+  // ── Top movers: biggest rupee change per category vs the previous period ──
+  const topMovers = useMemo(() => {
+    if (rangeStart === '0000-00-00') return null
+    const startDate = new Date(rangeStart)
+    const spanMs = Date.now() - startDate.getTime()
+    const prevStart = new Date(startDate.getTime() - spanMs).toISOString().slice(0, 10)
+    const sums = { cur: {}, prev: {} }
+    for (const t of transactions) {
+      if (t.type !== 'expense') continue
+      if (t.date >= rangeStart) sums.cur[t.categoryId] = (sums.cur[t.categoryId] || 0) + t.amount
+      else if (t.date >= prevStart) sums.prev[t.categoryId] = (sums.prev[t.categoryId] || 0) + t.amount
+    }
+    const ids = new Set([...Object.keys(sums.cur), ...Object.keys(sums.prev)])
+    const rows = [...ids].map(id => {
+      const cat = categories.find(c => c.id === id)
+      return {
+        id, name: cat?.name || 'Unknown', color: cat?.color || '#64748b',
+        delta: (sums.cur[id] || 0) - (sums.prev[id] || 0),
+        cur: sums.cur[id] || 0, prev: sums.prev[id] || 0,
+      }
+    }).filter(r => Math.abs(r.delta) >= 100)
+    if (!rows.length) return null
+    const up = [...rows].sort((a, b) => b.delta - a.delta)[0]
+    const down = [...rows].sort((a, b) => a.delta - b.delta)[0]
+    return {
+      up: up && up.delta > 0 ? up : null,
+      down: down && down.delta < 0 ? down : null,
+    }
+  }, [transactions, categories, rangeStart])
+
   // ── Category trends ──
   const categoryTrend = useMemo(() => {
     const keys = monthlyTrend.map(m => m.key)
@@ -312,20 +406,120 @@ export default function Analysis() {
       </div>
 
       {/* Key metrics */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard label="Savings rate" icon={PiggyBank} color="#8b5cf6"
-          value={<><AnimatedNumber value={totals.savingsRate} format={v => Math.round(v)} />%</>}
-          sub={`${formatCurrency(totals.net)} kept`} />
-        <StatCard label="Avg monthly spend" icon={Flame} color="#f97316"
-          value={<AnimatedNumber value={totals.avgMonthlySpend} format={formatCurrency} />}
-          sub={`over ${totals.months} month${totals.months !== 1 ? 's' : ''}`} />
-        <StatCard label="Largest expense" icon={ArrowDownRight} color="#f43f5e"
-          value={totals.largest ? formatCurrency(totals.largest.amount) : '—'}
-          sub={totals.largest ? totals.largest.name.slice(0, 22) : 'none'} />
-        <StatCard label="Recurring / mo" icon={Repeat} color="#06b6d4"
-          value={<AnimatedNumber value={recurringTotal} format={formatCurrency} />}
-          sub={`${detectedRecurring.length} detected`} />
-      </div>
+      <motion.div variants={gridStagger} initial="hidden" animate="show"
+        className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {[
+          <StatCard key="sr" label="Savings rate" icon={PiggyBank} color="#8b5cf6"
+            value={<><AnimatedNumber value={totals.savingsRate} format={v => Math.round(v)} />%</>}
+            sub={`${formatCurrency(totals.net)} kept`} />,
+          <StatCard key="ams" label="Avg monthly spend" icon={Flame} color="#f97316"
+            value={<AnimatedNumber value={totals.avgMonthlySpend} format={formatCurrency} />}
+            sub={`over ${totals.months} month${totals.months !== 1 ? 's' : ''}`} />,
+          <StatCard key="le" label="Largest expense" icon={ArrowDownRight} color="#f43f5e"
+            value={totals.largest ? formatCurrency(totals.largest.amount) : '—'}
+            sub={totals.largest ? totals.largest.name.slice(0, 22) : 'none'} />,
+          <StatCard key="rec" label="Recurring / mo" icon={Repeat} color="#06b6d4"
+            value={<AnimatedNumber value={recurringTotal} format={formatCurrency} />}
+            sub={`${detectedRecurring.length} detected`} />,
+        ].map((card, i) => <motion.div key={i} variants={cardRise}>{card}</motion.div>)}
+      </motion.div>
+
+      {/* Habits row: runway, no-spend, personality */}
+      <motion.div variants={gridStagger} initial="hidden" animate="show"
+        className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <motion.div variants={cardRise} className="glow-card bg-bg-card border border-line-subtle rounded-xl p-4">
+          <div className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold mb-2 flex items-center gap-1.5">
+            <Zap size={12} className="text-emerald-400" /> Money runway
+          </div>
+          {runway?.days != null ? (
+            <>
+              <div className="text-2xl font-bold text-white">
+                <AnimatedNumber value={runway.days} format={v => Math.round(v)} />
+                <span className="text-sm text-gray-500 font-normal ml-1">days</span>
+              </div>
+              <div className="text-[11px] text-gray-500 mt-1">
+                {formatCurrency(Math.max(0, Math.round(runway.liquid)))} liquid ÷ {formatCurrency(Math.round(runway.dailyBurn))}/day burn
+                {runway.days >= 30 && <span className="text-emerald-400"> · ~{Math.round(runway.days / 30)} months</span>}
+              </div>
+            </>
+          ) : (
+            <div className="text-sm text-gray-500">Add expenses to see how long your cash lasts</div>
+          )}
+        </motion.div>
+
+        <motion.div variants={cardRise} className="glow-card bg-bg-card border border-line-subtle rounded-xl p-4">
+          <div className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold mb-2 flex items-center gap-1.5">
+            <Calendar size={12} className="text-violet-400" /> No-spend days
+          </div>
+          {noSpend ? (
+            <>
+              <div className="text-2xl font-bold text-white">
+                {noSpend.zero}
+                <span className="text-sm text-gray-500 font-normal ml-1">of {noSpend.total}</span>
+              </div>
+              <div className="text-[11px] text-gray-500 mt-1">
+                {noSpend.streak > 0
+                  ? <span className="soft-pulse text-violet-300 font-medium">{noSpend.streak}-day streak going 🔥</span>
+                  : 'Spent something today'}
+              </div>
+            </>
+          ) : (
+            <div className="text-sm text-gray-500">No expense history yet</div>
+          )}
+        </motion.div>
+
+        <motion.div variants={cardRise} className="glow-card bg-gradient-to-br from-violet-500/10 to-transparent border border-violet-500/25 rounded-xl p-4">
+          <div className="text-[11px] uppercase tracking-wider text-violet-300 font-semibold mb-2">Spending personality</div>
+          {personality ? (
+            <>
+              <div className="text-lg font-bold text-white flex items-center gap-2">
+                <span className="text-2xl">{personality.emoji}</span> {personality.name}
+              </div>
+              <div className="text-[11px] text-gray-400 mt-1 leading-relaxed">{personality.blurb}</div>
+            </>
+          ) : (
+            <div className="text-sm text-gray-500">Needs a few more transactions to read you</div>
+          )}
+        </motion.div>
+      </motion.div>
+
+      {/* Top movers vs previous period */}
+      {topMovers && (topMovers.up || topMovers.down) && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {topMovers.up && (
+            <div className="bg-bg-card border border-rose-500/20 rounded-xl p-4 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-rose-500/10 border border-rose-500/25 flex items-center justify-center flex-shrink-0">
+                <TrendingUp size={16} className="text-rose-400" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold">Biggest increase</div>
+                <div className="text-sm text-white font-semibold truncate">
+                  <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: topMovers.up.color }} />
+                  {topMovers.up.name}
+                  <span className="text-rose-400 ml-2">+{formatCurrency(Math.round(topMovers.up.delta))}</span>
+                </div>
+                <div className="text-[11px] text-gray-500">vs the previous {RANGES.find(r => r.id === range)?.label} period</div>
+              </div>
+            </div>
+          )}
+          {topMovers.down && (
+            <div className="bg-bg-card border border-emerald-500/20 rounded-xl p-4 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-center flex-shrink-0">
+                <TrendingDown size={16} className="text-emerald-400" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold">Biggest cut</div>
+                <div className="text-sm text-white font-semibold truncate">
+                  <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: topMovers.down.color }} />
+                  {topMovers.down.name}
+                  <span className="text-emerald-400 ml-2">−{formatCurrency(Math.round(Math.abs(topMovers.down.delta)))}</span>
+                </div>
+                <div className="text-[11px] text-gray-500">vs the previous {RANGES.find(r => r.id === range)?.label} period</div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Insights */}
       {insights.length > 0 && (

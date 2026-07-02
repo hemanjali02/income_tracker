@@ -19,6 +19,7 @@ export function AppProvider({ children }) {
   const [goals, setGoals] = useState([])
   const [receivables, setReceivables] = useState([])
   const [netWorthSnapshots, setNetWorthSnapshots] = useState([])
+  const [emis, setEmis] = useState([])
   const [loading, setLoading] = useState(true)
   const undoTimers = useRef({})
 
@@ -30,13 +31,14 @@ export function AppProvider({ children }) {
         if (serverMode && !user) {
           setTransactions([]); setCategories([]); setAccounts([])
           setBudgets([]); setInvestments([])
-          setRecurring([]); setGoals([]); setReceivables([]); setNetWorthSnapshots([])
+          setRecurring([]); setGoals([]); setReceivables([]); setNetWorthSnapshots([]); setEmis([])
           return
         }
-        const [txs, cats, accs, buds, invs, recs, gls, rcvs, nws] = await Promise.all([
+        const [txs, cats, accs, buds, invs, recs, gls, rcvs, nws, ems] = await Promise.all([
           api.getTransactions(), api.getCategories(), api.getAccounts(),
           api.getBudgets(), api.getInvestments(),
           api.getRecurring(), api.getGoals(), api.getReceivables(), api.getNetWorthSnapshots(),
+          api.getEmis(),
         ])
         if (!serverMode) {
           setTransactions(txs.length ? txs : sampleTransactions)
@@ -46,7 +48,7 @@ export function AppProvider({ children }) {
           setTransactions(txs); setCategories(cats); setAccounts(accs)
         }
         setBudgets(buds); setInvestments(invs)
-        setRecurring(recs); setGoals(gls); setReceivables(rcvs); setNetWorthSnapshots(nws)
+        setRecurring(recs); setGoals(gls); setReceivables(rcvs); setNetWorthSnapshots(nws); setEmis(ems)
       } finally {
         setLoading(false)
       }
@@ -286,6 +288,22 @@ export function AppProvider({ children }) {
     addToast(`Marked received — added to account`)
   }, [addToast])
 
+  // EMIs
+  const addEmi = useCallback(async (e) => {
+    setEmis(prev => [...prev, e])
+    try { await api.addEmi(e) } catch { apiErr() }
+    addToast('EMI added')
+  }, [addToast])
+  const updateEmi = useCallback(async (id, updates) => {
+    setEmis(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e))
+    try { await api.updateEmi(id, updates) } catch { apiErr() }
+  }, [addToast])
+  const deleteEmi = useCallback(async (id) => {
+    setEmis(prev => prev.filter(e => e.id !== id))
+    try { await api.deleteEmi(id) } catch { apiErr() }
+    addToast('EMI removed', 'info')
+  }, [addToast])
+
   // Net worth snapshot helper
   const addNetWorthSnapshot = useCallback(async (snap) => {
     setNetWorthSnapshots(prev => {
@@ -327,7 +345,7 @@ export function AppProvider({ children }) {
   return (
     <AppContext.Provider value={{
       transactions, categories, accounts, budgets, investments,
-      recurring, goals, receivables, netWorthSnapshots,
+      recurring, goals, receivables, netWorthSnapshots, emis,
       addTransaction, updateTransaction, deleteTransaction, bulkDeleteTransactions, addTransfer, updateTransfer,
       addCategory, updateCategory, deleteCategory,
       addAccount, updateAccount, deleteAccount,
@@ -337,6 +355,7 @@ export function AppProvider({ children }) {
       addGoal, updateGoal, deleteGoal,
       addReceivable, updateReceivable, deleteReceivable, markReceivableReceived,
       addNetWorthSnapshot,
+      addEmi, updateEmi, deleteEmi,
     }}>
       {children}
     </AppContext.Provider>
