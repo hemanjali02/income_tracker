@@ -17,6 +17,7 @@ import ConfirmDialog from './ConfirmDialog'
 import NetWorthHistoryModal from './NetWorthHistoryModal'
 import AnimatedNumber from './AnimatedNumber'
 import ProBadge from './billing/ProBadge'
+import { gridStagger, cardRise } from '../utils/motion'
 import { generateMonthlyReport } from '../utils/pdfReport'
 
 function SummaryCard({ label, value, sub, icon: Icon, color, trend, valueColor, onClick }) {
@@ -215,33 +216,42 @@ export default function Dashboard() {
       </div>
 
       {/* Summary cards — Income / Expenses / Net / Net Worth */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <SummaryCard label="Total Income"
-          value={<AnimatedNumber value={curIncome} format={formatCurrency} />}
-          icon={TrendingUp} color="#10b981"
-          trend={pctChange(curIncome, prevIncome)} sub={`vs ${getMonthLabel(prevMonth)}`} />
-        <SummaryCard label="Total Expenses"
-          value={<AnimatedNumber value={curExpense} format={formatCurrency} />}
-          icon={TrendingDown} color="#f97316"
-          trend={pctChange(curExpense, prevExpense)} sub={`vs ${getMonthLabel(prevMonth)}`} />
-        <SummaryCard
-          label="Net This Month"
-          value={<><span>{netBalance >= 0 ? '+' : '−'}</span><AnimatedNumber value={Math.abs(netBalance)} format={formatCurrency} /></>}
-          valueColor={netBalance >= 0 ? 'text-emerald-400' : 'text-rose-400'}
-          icon={Wallet}
-          color={netBalance >= 0 ? '#10b981' : '#f43f5e'}
-          sub={`${daysElapsed} of ${totalDaysInMonth} days`}
-        />
-        <SummaryCard
-          label="Total Net Worth"
-          value={<><span>{totalNetWorth < 0 && '−'}</span><AnimatedNumber value={Math.abs(totalNetWorth)} format={formatCurrency} /></>}
-          valueColor={totalNetWorth >= 0 ? 'text-white' : 'text-rose-400'}
-          icon={Landmark}
-          color="#8b5cf6"
-          sub={<span className="text-violet-400">View history →</span>}
-          onClick={() => setShowNetWorthHistory(true)}
-        />
-      </div>
+      <motion.div variants={gridStagger} initial="hidden" animate="show"
+        className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <motion.div variants={cardRise}>
+          <SummaryCard label="Total Income"
+            value={<AnimatedNumber value={curIncome} format={formatCurrency} />}
+            icon={TrendingUp} color="#10b981"
+            trend={pctChange(curIncome, prevIncome)} sub={`vs ${getMonthLabel(prevMonth)}`} />
+        </motion.div>
+        <motion.div variants={cardRise}>
+          <SummaryCard label="Total Expenses"
+            value={<AnimatedNumber value={curExpense} format={formatCurrency} />}
+            icon={TrendingDown} color="#f97316"
+            trend={pctChange(curExpense, prevExpense)} sub={`vs ${getMonthLabel(prevMonth)}`} />
+        </motion.div>
+        <motion.div variants={cardRise}>
+          <SummaryCard
+            label="Net This Month"
+            value={<><span>{netBalance >= 0 ? '+' : '−'}</span><AnimatedNumber value={Math.abs(netBalance)} format={formatCurrency} /></>}
+            valueColor={netBalance >= 0 ? 'text-emerald-400' : 'text-rose-400'}
+            icon={Wallet}
+            color={netBalance >= 0 ? '#10b981' : '#f43f5e'}
+            sub={`${daysElapsed} of ${totalDaysInMonth} days`}
+          />
+        </motion.div>
+        <motion.div variants={cardRise}>
+          <SummaryCard
+            label="Total Net Worth"
+            value={<><span>{totalNetWorth < 0 && '−'}</span><AnimatedNumber value={Math.abs(totalNetWorth)} format={formatCurrency} /></>}
+            valueColor={totalNetWorth >= 0 ? 'text-white' : 'text-rose-400'}
+            icon={Landmark}
+            color="#8b5cf6"
+            sub={<span className="text-violet-400">View history →</span>}
+            onClick={() => setShowNetWorthHistory(true)}
+          />
+        </motion.div>
+      </motion.div>
 
       {/* Account Balances — moved up for quick reference */}
       {accounts.length > 0 && (
@@ -252,14 +262,15 @@ export default function Dashboard() {
             </h3>
             <span className="text-xs text-gray-500">All-time</span>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+          <motion.div variants={gridStagger} initial="hidden" animate="show"
+            className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
             {accounts.map(acc => {
               const balance = getAccountBalance(transactions, acc)
               return (
                 <motion.div
                   key={acc.id}
+                  variants={cardRise}
                   whileHover={{ y: -2 }}
-                  transition={{ type: 'spring', stiffness: 300, damping: 22 }}
                   className="bg-bg-elevated border border-line-subtle rounded-xl p-4 relative overflow-hidden"
                 >
                   <div className="absolute left-0 top-0 bottom-0 w-1" style={{ backgroundColor: acc.color }} />
@@ -274,7 +285,7 @@ export default function Dashboard() {
                 </motion.div>
               )
             })}
-          </div>
+          </motion.div>
         </div>
       )}
 

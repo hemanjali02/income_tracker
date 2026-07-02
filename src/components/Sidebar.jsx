@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { LayoutDashboard, ArrowLeftRight, Tag, Wallet, TrendingUp, Target, Menu, X, Database, HardDrive, LogOut, Briefcase, KeyRound, Eye, EyeOff, Repeat, Flag, HandCoins, LineChart, Coins, User, Trash2, AlertTriangle, Sparkles } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { GoogleLogin } from '@react-oauth/google'
+import { navSlide } from '../utils/motion'
 import { useAuth } from '../context/AuthContext'
 import { useBilling } from '../context/BillingContext'
 import { PRO_VIEWS } from '../config/plans'
@@ -417,15 +418,23 @@ export default function Sidebar({ activeView, onNavigate, mobileOpen, onCloseMob
                   <button
                     key={id}
                     onClick={() => handleNav(id)}
-                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg mb-0.5 text-sm font-medium transition-all duration-150 ${
-                      active
-                        ? 'bg-violet-500/10 text-violet-200 border-l-2 border-violet-400 pl-[10px]'
-                        : 'text-gray-400 hover:text-gray-200 hover:bg-white/[0.04] border-l-2 border-transparent'
+                    className={`relative w-full flex items-center gap-3 px-3 py-2 rounded-lg mb-0.5 text-sm font-medium transition-colors duration-150 ${
+                      active ? 'text-violet-200' : 'text-gray-400 hover:text-gray-200 hover:bg-white/[0.04]'
                     }`}
                   >
-                    <Icon size={15} className={active ? 'text-violet-300' : ''} />
-                    <span className="flex-1 text-left">{label}</span>
-                    {locked && <ProBadge size="xs" />}
+                    {/* Sliding highlight: one shared element glides between items */}
+                    {active && (
+                      <motion.span
+                        layoutId="navActive"
+                        transition={navSlide}
+                        className="absolute inset-0 rounded-lg bg-violet-500/10 border-l-2 border-violet-400"
+                      />
+                    )}
+                    <span className="relative z-10 flex items-center gap-3 flex-1 min-w-0">
+                      <Icon size={15} className={active ? 'text-violet-300' : ''} />
+                      <span className="flex-1 text-left">{label}</span>
+                      {locked && <ProBadge size="xs" />}
+                    </span>
                   </button>
                 )
               })}

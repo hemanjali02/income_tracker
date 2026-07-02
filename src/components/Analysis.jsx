@@ -10,17 +10,8 @@ import {
 import { motion } from 'framer-motion'
 import { useApp } from '../context/AppContext'
 import { formatCurrency, formatCompact, getMonthlyTotals, getAccountBalance } from '../utils/helpers'
+import { gridStagger, cardRise } from '../utils/motion'
 import AnimatedNumber from './AnimatedNumber'
-
-// Shared stagger presets for card grids
-const gridStagger = {
-  hidden: {},
-  show: { transition: { staggerChildren: 0.06 } },
-}
-const cardRise = {
-  hidden: { opacity: 0, y: 14, scale: 0.98 },
-  show: { opacity: 1, y: 0, scale: 1, transition: { type: 'spring', stiffness: 260, damping: 24 } },
-}
 
 function ChartTooltip({ active, payload, label, currency = true }) {
   if (!active || !payload?.length) return null
@@ -302,6 +293,10 @@ export default function Analysis() {
       if (t.date >= rangeStart) sums.cur[t.categoryId] = (sums.cur[t.categoryId] || 0) + t.amount
       else if (t.date >= prevStart) sums.prev[t.categoryId] = (sums.prev[t.categoryId] || 0) + t.amount
     }
+    // If the previous window has no data at all, a comparison is meaningless —
+    // everything would show as a from-zero "increase".
+    const prevTotal = Object.values(sums.prev).reduce((s, v) => s + v, 0)
+    if (prevTotal === 0) return null
     const ids = new Set([...Object.keys(sums.cur), ...Object.keys(sums.prev)])
     const rows = [...ids].map(id => {
       const cat = categories.find(c => c.id === id)
@@ -336,11 +331,12 @@ export default function Analysis() {
     }
     return Object.entries(map).map(([catId, v]) => {
       const cat = categories.find(c => c.id === catId)
-      // Only compute a trend when there is a prior period to compare against,
-      // otherwise a jump from zero always reads as +100% which is misleading.
-      const hasBaseline = v.older > 0
-      const trend = hasBaseline ? ((v.recent - v.older) / v.older) * 100 : null
-      return { id: catId, name: cat?.name || 'Unknown', color: cat?.color || '#64748b', total: v.total, trend }
+      // A trend needs at least 3 months in range (so both halves hold real data)
+      // and a non-zero baseline. With 1-2 months the recent half is empty and
+      // every category would falsely read as a 100% cut.
+      const canTrend = keys.length >= 3 && v.older > 0
+      const trend = canTrend ? ((v.recent - v.older) / v.older) * 100 : null
+      return { id: catId, name: cat?.name || 'Unknown', color: cat?.color || '#64748b', total: v.total, trend, recent: v.recent }
     }).sort((a, b) => b.total - a.total).slice(0, 8)
   }, [expenseTxs, categories, monthlyTrend])
 
@@ -356,7 +352,9 @@ export default function Analysis() {
     const withTrend = categoryTrend.filter(c => c.trend !== null)
     const jump = withTrend.find(c => c.trend > 50)
     if (jump) items.push({ type: 'warn', text: `${jump.name} is up ${Math.round(jump.trend)}% versus earlier in this range.` })
-    const cut = [...withTrend].sort((a, b) => a.trend - b.trend)[0]
+    // Only call it a "cut" when there is still some recent spending — a category
+    // that simply stopped appearing is usually missing data, not a 100% cut.
+    const cut = [...withTrend].filter(c => c.recent > 0).sort((a, b) => a.trend - b.trend)[0]
     if (cut && cut.trend < -30) items.push({ type: 'good', text: `${cut.name} is down ${Math.round(Math.abs(cut.trend))}%. Nice cut.` })
     if (recurringTotal > 0) items.push({ type: 'info', text: `About ${formatCurrency(recurringTotal)} a month looks like recurring subscriptions.` })
     if (weekSplit.weekendAvg > weekSplit.weekdayAvg * 1.4 && weekSplit.weekendAvg > 0) {

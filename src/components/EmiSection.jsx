@@ -215,8 +215,8 @@ export default function EmiSection({ account }) {
                 </div>
               </div>
               <div className="h-1.5 bg-bg-elevated rounded-full overflow-hidden">
-                <div className="h-full rounded-full transition-all duration-500"
-                  style={{ width: `${e.pct}%`, backgroundColor: e.done ? '#10b981' : '#06b6d4' }} />
+                <div className={`h-full rounded-full transition-all duration-500 ${e.done ? '' : 'bar-gradient'}`}
+                  style={{ width: `${e.pct}%`, ...(e.done ? { backgroundColor: '#10b981' } : {}) }} />
               </div>
               <div className="flex justify-between text-[11px] text-gray-500 mt-1">
                 <span>{e.paidMonths} of {e.months} paid</span>

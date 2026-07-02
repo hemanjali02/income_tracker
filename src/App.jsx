@@ -78,6 +78,7 @@ function AppShell() {
 
   return (
     <div className="min-h-screen flex overflow-hidden">
+      <div className="aurora" aria-hidden="true" />
       <Sidebar
         activeView={view}
         onNavigate={setView}

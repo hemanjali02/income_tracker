@@ -151,3 +151,47 @@ input[type="checkbox"]:checked::after {
   50% { opacity: 0.65; }
 }
 .soft-pulse { animation: softPulse 2.2s ease-in-out infinite; }
+
+/* Ambient aurora: two blurred colour fields drifting very slowly behind the app */
+.aurora {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+.aurora::before,
+.aurora::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(70px);
+  will-change: transform;
+}
+.aurora::before {
+  width: 55vw; height: 55vw;
+  left: -18vw; top: -22vw;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.13), transparent 62%);
+  animation: auroraDrift1 28s ease-in-out infinite alternate;
+}
+.aurora::after {
+  width: 48vw; height: 48vw;
+  right: -16vw; bottom: -20vw;
+  background: radial-gradient(circle, rgba(34, 211, 238, 0.07), transparent 62%);
+  animation: auroraDrift2 34s ease-in-out infinite alternate;
+}
+@keyframes auroraDrift1 {
+  to { transform: translate(14vw, 12vh) scale(1.18); }
+}
+@keyframes auroraDrift2 {
+  to { transform: translate(-12vw, -10vh) scale(1.12); }
+}
+
+/* Violet → cyan gradient fill for progress bars */
+.bar-gradient {
+  background: linear-gradient(90deg, #8b5cf6, #22d3ee);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aurora::before, .aurora::after, .soft-pulse, .gradient-text { animation: none; }
+}
