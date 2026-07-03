@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { RefreshCw } from 'lucide-react'
 import { ToastProvider } from './context/ToastContext'
 import usePullToRefresh from './hooks/usePullToRefresh'
+import AppSkeleton from './components/Skeleton'
 import Privacy from './components/public/Privacy'
 import Terms from './components/public/Terms'
 import DeleteAccountPublic from './components/public/DeleteAccountPublic'
@@ -160,14 +161,7 @@ function AppShell() {
 function AppGate() {
   const { user, serverMode, ready } = useAuth()
 
-  if (!ready) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-3">
-        <div className="text-violet-400 text-sm animate-pulse">Connecting to server…</div>
-        <div className="text-gray-600 text-xs">This may take a few seconds on first load</div>
-      </div>
-    )
-  }
+  if (!ready) return <AppSkeleton />
 
   if (serverMode && !user) {
     return <Login />

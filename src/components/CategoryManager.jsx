@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { motion } from 'framer-motion'
 import { Plus, Pencil, Trash2, X, Check, ChevronLeft, ArrowUpRight, ArrowDownRight } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { generateId, formatCurrency, formatDate } from '../utils/helpers'
@@ -7,15 +8,15 @@ import ColorPicker from './ColorPicker'
 import ConfirmDialog from './ConfirmDialog'
 import AddTransactionModal from './AddTransactionModal'
 
-function CategoryInitial({ name, color }) {
+function CategoryInitial({ name, color, layoutId }) {
   const letters = name.trim().split(/\s+/).slice(0, 2).map(w => w[0]?.toUpperCase() || '').join('')
   return (
-    <span
+    <motion.span layoutId={layoutId}
       className="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0"
       style={{ backgroundColor: color + '25', border: `1px solid ${color}40`, color }}
     >
       {letters || '?'}
-    </span>
+    </motion.span>
   )
 }
 
@@ -85,7 +86,7 @@ function CategoryDetail({ cat, transactions, accounts, onBack, onEdit, onDelete 
   const monthCount = catTxs.filter(t => t.date.startsWith(thisMonth)).length
 
   return (
-    <div className="space-y-5 animate-in">
+    <div className="space-y-5">
       {editTx && <AddTransactionModal editTx={editTx} onClose={() => setEditTx(null)} />}
 
       <div className="flex items-center gap-3">
@@ -94,9 +95,9 @@ function CategoryDetail({ cat, transactions, accounts, onBack, onEdit, onDelete 
           <ChevronLeft size={15} />
         </button>
         <div className="flex items-center gap-3 flex-1 min-w-0">
-          <CategoryInitial name={cat.name} color={cat.color} />
+          <CategoryInitial name={cat.name} color={cat.color} layoutId={`cat-icon-${cat.id}`} />
           <div className="min-w-0">
-            <h2 className="text-lg font-bold text-white">{cat.name}</h2>
+            <motion.h2 layoutId={`cat-name-${cat.id}`} className="text-lg font-bold text-white">{cat.name}</motion.h2>
             <p className="text-xs text-gray-500 capitalize">{cat.type} · {catTxs.length} transactions</p>
           </div>
         </div>
@@ -256,12 +257,12 @@ export default function CategoryManager() {
                 ) : (
                   <div
                     onClick={() => setSelectedCatId(cat.id)}
-                    className="flex items-center justify-between px-4 py-3 bg-bg-card rounded-xl border border-line-subtle group cursor-pointer hover:border-line transition-colors"
+                    className="glow-card flex items-center justify-between px-4 py-3 bg-bg-card rounded-xl border border-line-subtle group cursor-pointer"
                   >
                     <div className="flex items-center gap-3">
-                      <CategoryInitial name={cat.name} color={cat.color} />
+                      <CategoryInitial name={cat.name} color={cat.color} layoutId={`cat-icon-${cat.id}`} />
                       <div>
-                        <div className="text-sm font-medium text-white">{cat.name}</div>
+                        <motion.div layoutId={`cat-name-${cat.id}`} className="text-sm font-medium text-white">{cat.name}</motion.div>
                         <div className="text-xs text-gray-500">
                           {cat.type === 'expense' ? 'Expense' : 'Income'}
                           <span className="text-gray-600 ml-1.5">·</span>

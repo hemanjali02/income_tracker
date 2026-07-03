@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { motion } from 'framer-motion'
 import { Plus, Pencil, Trash2, X, Check, CreditCard, ArrowLeftRight, ChevronLeft, ArrowUpRight, ArrowDownRight, Activity, Building2, Banknote, Wallet as WalletIcon } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { generateId, formatCurrency, formatDate, formatCompact, getAccountBalance, getCurrentCreditCycle, getCreditCycleSpend } from '../utils/helpers'
@@ -18,13 +19,14 @@ export const ACCOUNT_TYPES = [
   { id: 'credit', label: 'Credit Card', icon: CreditCard },
 ]
 
-export function AccountIcon({ type, color, size = 18 }) {
+export function AccountIcon({ type, color, size = 18, layoutId }) {
   const Icon = ACCOUNT_TYPES.find(t => t.id === type)?.icon || Building2
   return (
-    <div className="w-10 h-10 rounded-xl flex items-center justify-center"
+    <motion.div layoutId={layoutId}
+      className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
       style={{ backgroundColor: color + '15', border: `1px solid ${color}20` }}>
       <Icon size={size} style={{ color }} />
-    </div>
+    </motion.div>
   )
 }
 
@@ -152,7 +154,7 @@ function AccountDetail({ acc, transactions, categories, accounts, onBack, onEdit
   const transfersOut = accTxs.filter(t => t.type === 'transfer' && t.transferDirection === 'out').reduce((s, t) => s + t.amount, 0)
 
   return (
-    <div className="space-y-5 animate-in">
+    <div className="space-y-5">
       {editTx && <AddTransactionModal editTx={editTx} onClose={() => setEditTx(null)} />}
 
       {/* Header */}
@@ -162,11 +164,9 @@ function AccountDetail({ acc, transactions, categories, accounts, onBack, onEdit
           <ChevronLeft size={15} />
         </button>
         <div className="flex items-center gap-3 flex-1 min-w-0">
-          <div className="flex-shrink-0">
-            <AccountIcon type={acc.accountType} color={acc.color} />
-          </div>
+          <AccountIcon type={acc.accountType} color={acc.color} layoutId={`acc-icon-${acc.id}`} />
           <div className="min-w-0">
-            <h2 className="text-lg font-bold text-white">{acc.name}</h2>
+            <motion.h2 layoutId={`acc-name-${acc.id}`} className="text-lg font-bold text-white">{acc.name}</motion.h2>
             <p className="text-xs text-gray-500">{accTxs.length} transactions</p>
           </div>
         </div>
@@ -403,14 +403,14 @@ export default function AccountManager({ onTransfer }) {
                 />
               ) : (
                 <div
-                  className="bg-bg-card rounded-xl border border-line-subtle p-5 group cursor-pointer hover:border-line transition-colors"
+                  className="glow-card bg-bg-card rounded-xl border border-line-subtle p-5 group cursor-pointer"
                   onClick={() => setSelectedAccId(acc.id)}
                 >
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-3">
-                      <AccountIcon type={acc.accountType} color={acc.color} />
+                      <AccountIcon type={acc.accountType} color={acc.color} layoutId={`acc-icon-${acc.id}`} />
                       <div>
-                        <div className="text-sm font-bold text-white">{acc.name}</div>
+                        <motion.div layoutId={`acc-name-${acc.id}`} className="text-sm font-bold text-white">{acc.name}</motion.div>
                         <div className="text-xs text-gray-500">{stats.count} transactions</div>
                       </div>
                     </div>

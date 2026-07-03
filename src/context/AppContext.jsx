@@ -4,6 +4,7 @@ import { defaultCategories, defaultAccounts, sampleTransactions } from '../data'
 import { generateId } from '../utils/helpers'
 import { useToast } from './ToastContext'
 import { useAuth } from './AuthContext'
+import AppSkeleton from '../components/Skeleton'
 
 const AppContext = createContext(null)
 
@@ -335,11 +336,7 @@ export function AppProvider({ children }) {
   }, [addToast])
 
   if (loading || !authReady) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-violet-400 text-sm animate-pulse">Loading…</div>
-      </div>
-    )
+    return <AppSkeleton />
   }
 
   return (
