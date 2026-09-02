@@ -222,6 +222,114 @@ function daysInMonth(year, monthIdx) {
   return new Date(year, monthIdx + 1, 0).getDate()
 }
 
+// ─── Upcoming timeline ───────────────────────────────────
+// Merges every future-dated commitment (recurring items, EMI installments,
+// credit-card statement/due dates, pending receivables) into one chronological
+// list, and projects the liquid-cash balance forward across them.
+export function buildUpcomingTimeline({ recurring = [], emis = [], accounts = [], receivables = [], transactions = [], days = 60 }) {
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const end = new Date(today); end.setDate(end.getDate() + days)
+  const iso = (d) => d.toISOString().slice(0, 10)
+  const todayIso = iso(today), endIso = iso(end)
+  const monthsToScan = Math.floor(days / 28) + 2
+  const events = []
+
+  const occurrencesOnDay = (dayNum, count) => {
+    const out = []
+    let y = today.getFullYear(), m = today.getMonth()
+    for (let i = 0; i < count; i++) {
+      const d = new Date(y, m, Math.min(dayNum, daysInMonth(y, m)))
+      if (d >= today && d <= end) out.push({ iso: iso(d), y, m })
+      m++; if (m > 11) { m = 0; y++ }
+    }
+    return out
+  }
+
+  // Recurring items
+  for (const r of recurring) {
+    if (!r.active) continue
+    const amt = r.type === 'income' ? r.amount : -r.amount
+    const kind = r.type === 'income' ? 'income' : 'expense'
+    if (r.frequency === 'weekly') {
+      let d = new Date(r.lastGeneratedDate || r.startDate)
+      while (d < today) d.setDate(d.getDate() + 7)
+      while (d <= end) { events.push({ date: iso(d), kind, name: r.name, amount: amt, source: 'recurring' }); d = new Date(d); d.setDate(d.getDate() + 7) }
+    } else if (r.frequency === 'yearly') {
+      const mo = (r.monthOfYear || (new Date(r.startDate).getMonth() + 1)) - 1
+      const dom = r.dayOfMonth || new Date(r.startDate).getDate()
+      for (const y of [today.getFullYear(), today.getFullYear() + 1]) {
+        const d = new Date(y, mo, Math.min(dom, daysInMonth(y, mo)))
+        if (d >= today && d <= end) events.push({ date: iso(d), kind, name: r.name, amount: amt, source: 'recurring' })
+      }
+    } else { // monthly (default)
+      const dom = r.dayOfMonth || new Date(r.startDate).getDate()
+      for (const o of occurrencesOnDay(dom, monthsToScan)) {
+        events.push({ date: o.iso, kind, name: r.name, amount: amt, source: 'recurring' })
+      }
+    }
+  }
+
+  // EMI installments
+  for (const e of emis) {
+    if (e.closed) continue
+    const inst = Math.round(emiInstallment(e.principal, e.interestRate, e.months))
+    const start = new Date(e.startDate)
+    for (const o of occurrencesOnDay(start.getDate(), monthsToScan)) {
+      const num = (o.y - start.getFullYear()) * 12 + (o.m - start.getMonth()) + 1
+      if (num >= 1 && num <= e.months) {
+        events.push({ date: o.iso, kind: 'emi', name: `${e.name} EMI`, amount: -inst, source: 'emi', meta: `${num}/${e.months}` })
+      }
+    }
+  }
+
+  // Credit-card statement + payment-due markers (no balance impact)
+  for (const acc of accounts) {
+    if (acc.accountType !== 'credit' || !acc.cycleDay) continue
+    const bal = getAccountBalance(transactions, acc)
+    const outstanding = bal < 0 ? Math.abs(bal) : 0
+    const stmt = occurrencesOnDay(acc.cycleDay, 3)[0]
+    if (stmt) events.push({ date: stmt.iso, kind: 'statement', name: `${acc.name} statement`, amount: null, source: 'card' })
+    if (acc.dueDay) {
+      const due = occurrencesOnDay(acc.dueDay, 3)[0]
+      if (due) events.push({ date: due.iso, kind: 'due', name: `${acc.name} payment due`, amount: null, source: 'card', meta: outstanding ? formatCurrency(outstanding) : null })
+    }
+  }
+
+  // Pending receivables with a due date in the window (expected inflow)
+  for (const rc of receivables) {
+    if (rc.status !== 'pending' || !rc.dueDate) continue
+    if (rc.dueDate >= todayIso && rc.dueDate <= endIso) {
+      events.push({ date: rc.dueDate, kind: 'receivable', name: `${rc.name} pays you`, amount: rc.amount, source: 'receivable' })
+    }
+  }
+
+  events.sort((a, b) => a.date.localeCompare(b.date) || (Math.abs(b.amount || 0) - Math.abs(a.amount || 0)))
+
+  // Project liquid-cash balance across the events
+  const liquidStart = accounts
+    .filter(a => a.accountType !== 'credit')
+    .reduce((s, a) => s + getAccountBalance(transactions, a), 0)
+  let bal = liquidStart, lowest = bal, lowestDate = todayIso
+  const series = [{ date: todayIso, balance: Math.round(bal) }]
+  for (const ev of events) {
+    if (ev.amount) {
+      bal += ev.amount
+      if (bal < lowest) { lowest = bal; lowestDate = ev.date }
+    }
+    series.push({ date: ev.date, balance: Math.round(bal) })
+  }
+
+  const totalIn = events.filter(e => e.amount > 0).reduce((s, e) => s + e.amount, 0)
+  const totalOut = events.filter(e => e.amount < 0).reduce((s, e) => s + Math.abs(e.amount), 0)
+
+  return {
+    events, series, liquidStart,
+    endBalance: Math.round(bal),
+    lowest: Math.round(lowest), lowestDate,
+    totalIn, totalOut, days, count: events.length,
+  }
+}
+
 export function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2)
 }

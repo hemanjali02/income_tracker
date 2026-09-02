@@ -6,10 +6,11 @@ import {
 import {
   TrendingUp, TrendingDown, Calendar, Store, Activity, Heart, PiggyBank,
   Repeat, Zap, ArrowDownRight, ArrowUpRight, Flame, CalendarDays, Receipt, PieChart as PieIcon,
+  CalendarClock, FileText, AlertCircle, HandCoins, CornerDownRight,
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useApp } from '../context/AppContext'
-import { formatCurrency, formatCompact, formatDate, getMonthlyTotals, getAccountBalance } from '../utils/helpers'
+import { formatCurrency, formatCompact, formatDate, getMonthlyTotals, getAccountBalance, buildUpcomingTimeline } from '../utils/helpers'
 import { gridStagger, cardRise } from '../utils/motion'
 import AnimatedNumber from './AnimatedNumber'
 
@@ -57,9 +58,140 @@ function StatCard({ label, value, sub, icon: Icon, color }) {
   )
 }
 
+const EVENT_STYLE = {
+  income:     { icon: ArrowUpRight,   color: '#10b981' },
+  expense:    { icon: ArrowDownRight, color: '#f97316' },
+  emi:        { icon: CalendarClock,  color: '#06b6d4' },
+  receivable: { icon: HandCoins,      color: '#f59e0b' },
+  statement:  { icon: FileText,       color: '#64748b' },
+  due:        { icon: AlertCircle,    color: '#f43f5e' },
+}
+
+function UpcomingTimeline({ data }) {
+  if (!data || data.count === 0) {
+    return (
+      <div className="bg-bg-card border border-line-subtle rounded-xl p-5">
+        <h3 className="text-sm font-semibold text-white mb-1 flex items-center gap-2">
+          <CalendarClock size={14} className="text-violet-400" /> Upcoming
+        </h3>
+        <p className="text-sm text-gray-500">
+          Nothing scheduled in the next 60 days. Add recurring items, EMIs or receivables with due dates and they'll appear here as a forward projection.
+        </p>
+      </div>
+    )
+  }
+
+  const willDip = data.lowest < 0
+  const areaColor = willDip ? '#f43f5e' : '#8b5cf6'
+
+  return (
+    <div className="bg-bg-card border border-line-subtle rounded-xl overflow-hidden">
+      <div className="px-5 py-4 border-b border-line-subtle flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+            <CalendarClock size={14} className="text-violet-400" /> Upcoming
+          </h3>
+          <p className="text-[11px] text-gray-500 mt-0.5">{data.count} events across the next {data.days} days</p>
+        </div>
+        <div className="flex gap-2">
+          <span className="text-[11px] px-2 py-1 rounded-md bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+            +{formatCurrency(Math.round(data.totalIn))} in
+          </span>
+          <span className="text-[11px] px-2 py-1 rounded-md bg-rose-500/10 text-rose-300 border border-rose-500/20">
+            −{formatCurrency(Math.round(data.totalOut))} out
+          </span>
+        </div>
+      </div>
+
+      {/* Projected liquid-cash balance */}
+      <div className="px-3 pt-4">
+        <div className="flex items-center justify-between px-2 mb-2">
+          <span className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold">Projected cash</span>
+          <span className="text-[11px] text-gray-500">
+            ends at <span className={`font-semibold ${data.endBalance >= 0 ? 'text-gray-200' : 'text-rose-400'}`}>{formatCurrency(data.endBalance)}</span>
+          </span>
+        </div>
+        <ResponsiveContainer width="100%" height={150}>
+          <AreaChart data={data.series}>
+            <defs>
+              <linearGradient id="upGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={areaColor} stopOpacity={0.35} />
+                <stop offset="95%" stopColor={areaColor} stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="#1c1c2e" vertical={false} />
+            <XAxis dataKey="date" tick={{ fill: '#6b7280', fontSize: 10 }} axisLine={false} tickLine={false}
+              tickFormatter={formatDate} minTickGap={24} />
+            <YAxis tick={{ fill: '#6b7280', fontSize: 10 }} axisLine={false} tickLine={false}
+              tickFormatter={v => formatCompact(v)} width={48} />
+            <Tooltip
+              contentStyle={{ background: '#1a1a2e', border: '1px solid #252540', borderRadius: 8, fontSize: 12 }}
+              itemStyle={{ color: areaColor }} labelStyle={{ color: '#9ca3af' }}
+              labelFormatter={formatDate} formatter={v => [formatCurrency(v), 'Projected']} />
+            {willDip && <ReferenceLine y={0} stroke="#f43f5e" strokeDasharray="4 4" />}
+            <Area type="monotone" dataKey="balance" stroke={areaColor} strokeWidth={2.5} fill="url(#upGrad)" />
+          </AreaChart>
+        </ResponsiveContainer>
+        {willDip && (
+          <div className="mx-2 mb-3 mt-1 text-[11px] text-rose-300 bg-rose-500/5 border border-rose-500/20 rounded-lg px-3 py-2 flex items-center gap-2">
+            <AlertCircle size={13} className="flex-shrink-0" />
+            Cash is projected to dip to {formatCurrency(data.lowest)} around {formatDate(data.lowestDate)}. Consider spacing out large outflows.
+          </div>
+        )}
+      </div>
+
+      {/* Event list */}
+      <div className="max-h-80 overflow-y-auto divide-y divide-line-subtle border-t border-line-subtle">
+        {data.events.map((ev, i) => {
+          const st = EVENT_STYLE[ev.kind] || EVENT_STYLE.expense
+          const Icon = st.icon
+          const runningBalance = data.series[i + 1]?.balance
+          const prevDate = i > 0 ? data.events[i - 1].date : null
+          const showDate = ev.date !== prevDate
+          return (
+            <div key={i} className="flex items-center gap-3 px-5 py-2.5 hover:bg-white/[0.02] transition-colors">
+              <div className="w-14 flex-shrink-0 text-[11px] text-gray-500">
+                {showDate ? formatDate(ev.date) : <CornerDownRight size={11} className="text-gray-700 ml-1" />}
+              </div>
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: st.color + '18', border: `1px solid ${st.color}25` }}>
+                <Icon size={13} style={{ color: st.color }} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm text-gray-200 truncate">{ev.name}</div>
+                {ev.meta && <div className="text-[10px] text-gray-500">{ev.kind === 'due' ? `Outstanding ${ev.meta}` : ev.meta}</div>}
+              </div>
+              <div className="text-right flex-shrink-0">
+                {ev.amount != null ? (
+                  <div className={`text-sm font-semibold ${ev.amount > 0 ? 'text-emerald-400' : 'text-gray-200'}`}>
+                    {ev.amount > 0 ? '+' : '−'}{formatCurrency(Math.abs(ev.amount))}
+                  </div>
+                ) : (
+                  <div className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">
+                    {ev.kind === 'statement' ? 'Statement' : 'Due'}
+                  </div>
+                )}
+                {ev.amount != null && runningBalance != null && (
+                  <div className="text-[10px] text-gray-600">{formatCompact(runningBalance)}</div>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 export default function Analysis() {
-  const { transactions, categories, accounts } = useApp()
+  const { transactions, categories, accounts, recurring, emis, receivables } = useApp()
   const [range, setRange] = useState('6m')
+
+  // ── Upcoming timeline: forward-looking commitments + projected balance ──
+  const upcoming = useMemo(() =>
+    buildUpcomingTimeline({ recurring, emis, accounts, receivables, transactions, days: 60 }),
+    [recurring, emis, accounts, receivables, transactions]
+  )
 
   const rangeStart = useMemo(() => {
     const cfg = RANGES.find(r => r.id === range)
@@ -546,6 +678,9 @@ export default function Analysis() {
           )}
         </motion.div>
       </motion.div>
+
+      {/* Upcoming timeline — forward-looking commitments + projected cash */}
+      <UpcomingTimeline data={upcoming} />
 
       {/* Top movers vs previous period */}
       {topMovers && (topMovers.up || topMovers.down) && (
