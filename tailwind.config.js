@@ -9,14 +9,14 @@ export default {
       colors: {
         bg: {
           base: '#08080f',
-          card: '#11111c',
-          elevated: '#16162a',
-          input: '#1a1a2e',
+          card: '#13131f',
+          elevated: '#1a1a2e',
+          input: '#1e1e34',
         },
         line: {
-          subtle: '#0e0e1a',
-          DEFAULT: '#161625',
-          bright: '#1e1e32',
+          subtle: '#1e1e30',
+          DEFAULT: '#26263c',
+          bright: '#31314e',
         },
       },
       backgroundImage: {

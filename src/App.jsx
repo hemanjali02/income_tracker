@@ -35,7 +35,7 @@ function LocalModeBanner() {
     <div className="bg-amber-500/10 border-b border-amber-500/30 px-4 py-2.5 flex items-center justify-center gap-2 text-center">
       <span className="text-amber-400 text-sm">⚠️</span>
       <p className="text-amber-300 text-xs sm:text-sm font-medium">
-        Demo mode — server unreachable. Showing sample data only.{' '}
+        Demo mode, server unreachable. Showing sample data only.{' '}
         <span className="text-amber-400/70 font-normal">Your real data is safe in the cloud. Refresh to reconnect.</span>
       </p>
       <button

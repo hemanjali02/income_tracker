@@ -1,22 +1,25 @@
 import { useState, useMemo } from 'react'
+import { motion } from 'framer-motion'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 import { Plus, Pencil, Trash2, TrendingUp, TrendingDown, Wallet, Target } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { INVESTMENT_TYPES } from '../data'
 import { formatCurrency, formatDateFull } from '../utils/helpers'
+import { gridStagger, cardRise } from '../utils/motion'
+import AnimatedNumber from './AnimatedNumber'
 import AddInvestmentModal from './AddInvestmentModal'
 import ConfirmDialog from './ConfirmDialog'
 
-function SummaryCard({ label, value, sub, icon: Icon, color }) {
+function SummaryCard({ label, value, sub, icon: Icon, color, valueColor }) {
   return (
-    <div className="bg-bg-card border border-line-subtle rounded-xl p-4 sm:p-5">
+    <div className="glow-card bg-bg-card border border-line-subtle rounded-xl p-4 sm:p-5">
       <div className="flex items-center justify-between mb-3">
         <div className="w-10 h-10 rounded-xl flex items-center justify-center"
           style={{ backgroundColor: color + '18', border: `1px solid ${color}20` }}>
           <Icon size={18} style={{ color }} />
         </div>
       </div>
-      <div className="text-lg sm:text-xl font-bold text-white mb-1">{value}</div>
+      <div className={`text-lg sm:text-xl font-bold mb-1 ${valueColor || 'text-white'}`}>{value}</div>
       <div className="text-xs text-gray-500">{label}</div>
       {sub && <div className="text-xs text-gray-600 mt-0.5">{sub}</div>}
     </div>
@@ -88,18 +91,27 @@ export default function Investments() {
       ) : (
         <>
           {/* Summary cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            <SummaryCard label="Total Invested" value={formatCurrency(totalInvested)} icon={Wallet} color="#8b5cf6" />
-            <SummaryCard label="Current Value" value={formatCurrency(totalCurrent)} icon={Target} color="#3b82f6" />
-            <SummaryCard label={totalGain >= 0 ? 'Total Gain' : 'Total Loss'}
-              value={formatCurrency(Math.abs(totalGain))}
-              icon={totalGain >= 0 ? TrendingUp : TrendingDown}
-              color={totalGain >= 0 ? '#10b981' : '#f43f5e'}
-              sub={`${gainPct >= 0 ? '+' : ''}${gainPct.toFixed(2)}%`}
-            />
-            <SummaryCard label="Holdings" value={String(investments.length)} icon={Wallet} color="#f59e0b"
-              sub={`${allocationData.length} type${allocationData.length !== 1 ? 's' : ''}`} />
-          </div>
+          <motion.div variants={gridStagger} initial="hidden" animate="show" className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <motion.div variants={cardRise}>
+              <SummaryCard label="Total Invested" value={<AnimatedNumber value={totalInvested} format={formatCurrency} />} icon={Wallet} color="#8b5cf6" />
+            </motion.div>
+            <motion.div variants={cardRise}>
+              <SummaryCard label="Current Value" value={<AnimatedNumber value={totalCurrent} format={formatCurrency} />} icon={Target} color="#3b82f6" />
+            </motion.div>
+            <motion.div variants={cardRise}>
+              <SummaryCard label={totalGain >= 0 ? 'Total Gain' : 'Total Loss'}
+                value={<AnimatedNumber value={Math.abs(totalGain)} format={formatCurrency} />}
+                valueColor={totalGain >= 0 ? 'text-emerald-400' : 'text-rose-400'}
+                icon={totalGain >= 0 ? TrendingUp : TrendingDown}
+                color={totalGain >= 0 ? '#10b981' : '#f43f5e'}
+                sub={`${gainPct >= 0 ? '+' : ''}${gainPct.toFixed(2)}%`}
+              />
+            </motion.div>
+            <motion.div variants={cardRise}>
+              <SummaryCard label="Holdings" value={String(investments.length)} icon={Wallet} color="#f59e0b"
+                sub={`${allocationData.length} type${allocationData.length !== 1 ? 's' : ''}`} />
+            </motion.div>
+          </motion.div>
 
           {/* Allocation chart + List */}
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
