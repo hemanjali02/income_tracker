@@ -7,14 +7,17 @@ export function formatCurrency(amount) {
   }).format(amount)
 }
 
-// Short form for chart axes and compact displays — Indian scale
+// Short form for chart axes and compact displays — Indian scale.
+// Values under 1,000 show the exact rounded rupee amount (with grouping) so a
+// balance like 847.9999 never leaks floating-point decimals; larger values use
+// K / L / Cr. Safe to call with the fractional values AnimatedNumber tweens.
 export function formatCompact(amount) {
   const abs = Math.abs(amount)
   const sign = amount < 0 ? '−' : ''
   if (abs >= 1_00_00_000) return `${sign}₹${(abs / 1_00_00_000).toFixed(1).replace(/\.0$/, '')}Cr`
   if (abs >= 1_00_000)    return `${sign}₹${(abs / 1_00_000).toFixed(1).replace(/\.0$/, '')}L`
-  if (abs >= 1_000)       return `${sign}₹${(abs / 1_000).toFixed(0)}K`
-  return `${sign}₹${abs}`
+  if (abs >= 1_000)       return `${sign}₹${(abs / 1_000).toFixed(1).replace(/\.0$/, '')}K`
+  return `${sign}₹${Math.round(abs).toLocaleString('en-IN')}`
 }
 
 export function formatDate(dateStr) {

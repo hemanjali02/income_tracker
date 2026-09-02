@@ -5,11 +5,11 @@ import {
 } from 'recharts'
 import {
   TrendingUp, TrendingDown, Calendar, Store, Activity, Heart, PiggyBank,
-  Repeat, Zap, ArrowDownRight, ArrowUpRight, Flame,
+  Repeat, Zap, ArrowDownRight, ArrowUpRight, Flame, CalendarDays, Receipt, PieChart as PieIcon,
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useApp } from '../context/AppContext'
-import { formatCurrency, formatCompact, getMonthlyTotals, getAccountBalance } from '../utils/helpers'
+import { formatCurrency, formatCompact, formatDate, getMonthlyTotals, getAccountBalance } from '../utils/helpers'
 import { gridStagger, cardRise } from '../utils/motion'
 import AnimatedNumber from './AnimatedNumber'
 
@@ -363,6 +363,47 @@ export default function Analysis() {
     return items
   }, [monthlyTrend, categoryTrend, recurringTotal, weekSplit])
 
+  // ── Category spending breakdown for the range ──
+  const categorySpending = useMemo(() => {
+    const map = {}
+    for (const tx of expenseTxs) map[tx.categoryId] = (map[tx.categoryId] || 0) + tx.amount
+    const rows = Object.entries(map).map(([id, value]) => {
+      const cat = categories.find(c => c.id === id)
+      return { id, name: cat?.name || 'Uncategorised', value, color: cat?.color || '#64748b' }
+    }).sort((a, b) => b.value - a.value)
+    return { rows, total: rows.reduce((s, r) => s + r.value, 0) }
+  }, [expenseTxs, categories])
+
+  // ── This period vs the previous equal-length period ──
+  const periodCompare = useMemo(() => {
+    if (rangeStart === '0000-00-00') return null
+    const startDate = new Date(rangeStart)
+    const spanMs = Date.now() - startDate.getTime()
+    const prevStart = new Date(startDate.getTime() - spanMs).toISOString().slice(0, 10)
+    let curExp = 0, prevExp = 0
+    for (const t of transactions) {
+      if (t.type !== 'expense') continue
+      if (t.date >= rangeStart) curExp += t.amount
+      else if (t.date >= prevStart) prevExp += t.amount
+    }
+    if (prevExp === 0) return null
+    return { curExp, prevExp, pct: Math.round(((curExp - prevExp) / prevExp) * 100) }
+  }, [transactions, rangeStart])
+
+  // ── Biggest single spending day ──
+  const biggestDay = useMemo(() => {
+    const map = {}
+    for (const tx of expenseTxs) map[tx.date] = (map[tx.date] || 0) + tx.amount
+    let best = null
+    for (const [date, total] of Object.entries(map)) if (!best || total > best.total) best = { date, total }
+    return best
+  }, [expenseTxs])
+
+  const avgTxn = expenseTxs.length ? Math.round(totals.expense / expenseTxs.length) : 0
+  const topCat = categorySpending.rows[0] || null
+  const topCatShare = categorySpending.total > 0 && topCat
+    ? Math.round((topCat.value / categorySpending.total) * 100) : 0
+
   if (transactions.filter(t => t.type !== 'transfer').length < 5) {
     return (
       <div className="space-y-6 animate-in">
@@ -419,6 +460,31 @@ export default function Analysis() {
           <StatCard key="rec" label="Recurring / mo" icon={Repeat} color="#06b6d4"
             value={<AnimatedNumber value={recurringTotal} format={formatCurrency} />}
             sub={`${detectedRecurring.length} detected`} />,
+        ].map((card, i) => <motion.div key={i} variants={cardRise}>{card}</motion.div>)}
+      </motion.div>
+
+      {/* Second stats row: comparison, biggest day, avg txn, top category */}
+      <motion.div variants={gridStagger} initial="hidden" animate="show"
+        className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {[
+          <StatCard key="cmp" label="Vs last period"
+            icon={periodCompare && periodCompare.pct > 0 ? TrendingUp : TrendingDown}
+            color={periodCompare && periodCompare.pct > 0 ? '#f43f5e' : '#10b981'}
+            value={periodCompare
+              ? <span className={periodCompare.pct > 0 ? 'text-rose-400' : 'text-emerald-400'}>
+                  {periodCompare.pct > 0 ? '+' : ''}{periodCompare.pct}%
+                </span>
+              : '—'}
+            sub={periodCompare ? `spent ${formatCurrency(periodCompare.curExp)}` : 'no prior period'} />,
+          <StatCard key="day" label="Biggest day" icon={CalendarDays} color="#f59e0b"
+            value={biggestDay ? formatCurrency(biggestDay.total) : '—'}
+            sub={biggestDay ? formatDate(biggestDay.date) : 'no spending'} />,
+          <StatCard key="avg" label="Avg transaction" icon={Receipt} color="#3b82f6"
+            value={<AnimatedNumber value={avgTxn} format={formatCurrency} />}
+            sub={`${expenseTxs.length} expense${expenseTxs.length !== 1 ? 's' : ''}`} />,
+          <StatCard key="top" label="Top category" icon={PieIcon} color={topCat?.color || '#8b5cf6'}
+            value={topCat ? topCat.name : '—'}
+            sub={topCat ? `${topCatShare}% of spending` : 'no data'} />,
         ].map((card, i) => <motion.div key={i} variants={cardRise}>{card}</motion.div>)}
       </motion.div>
 
@@ -580,8 +646,8 @@ export default function Analysis() {
           </div>
         )}
 
-        {/* Savings rate trend */}
-        <div className="lg:col-span-2 bg-bg-card border border-line-subtle rounded-xl p-5">
+        {/* Savings rate trend — fills the row when there is no health card yet */}
+        <div className={`${health ? 'lg:col-span-2' : 'lg:col-span-3'} bg-bg-card border border-line-subtle rounded-xl p-5`}>
           <h3 className="text-sm font-semibold text-white mb-4">Savings Rate by Month</h3>
           {savingsSeries.length === 0 ? (
             <p className="text-gray-500 text-sm text-center py-10">No data</p>
@@ -657,6 +723,52 @@ export default function Analysis() {
           </LineChart>
         </ResponsiveContainer>
       </div>
+
+      {/* Where your money goes — category spending breakdown for the range */}
+      {categorySpending.rows.length > 0 && (
+        <div className="bg-bg-card border border-line-subtle rounded-xl p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+              <PieIcon size={14} className="text-violet-400" /> Where Your Money Goes
+            </h3>
+            <span className="text-xs text-gray-500">{formatCurrency(categorySpending.total)} total</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-[auto_1fr] gap-5 items-center">
+            <ResponsiveContainer width={180} height={180}>
+              <PieChart>
+                <Pie data={categorySpending.rows.slice(0, 8)} cx="50%" cy="50%"
+                  innerRadius={48} outerRadius={80} paddingAngle={2} dataKey="value">
+                  {categorySpending.rows.slice(0, 8).map(e => <Cell key={e.id} fill={e.color} stroke="transparent" />)}
+                </Pie>
+                <Tooltip formatter={v => formatCurrency(v)}
+                  contentStyle={{ background: '#1a1a2e', border: 'none', borderRadius: 8, fontSize: 12 }}
+                  itemStyle={{ color: '#fff' }} />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="space-y-2">
+              {categorySpending.rows.slice(0, 6).map(c => {
+                const pct = categorySpending.total > 0 ? (c.value / categorySpending.total) * 100 : 0
+                return (
+                  <div key={c.id}>
+                    <div className="flex items-center justify-between text-xs mb-1">
+                      <span className="flex items-center gap-2 min-w-0">
+                        <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: c.color }} />
+                        <span className="text-gray-300 truncate">{c.name}</span>
+                      </span>
+                      <span className="text-gray-400 font-medium flex-shrink-0 ml-2">
+                        {formatCurrency(c.value)} <span className="text-gray-600">· {Math.round(pct)}%</span>
+                      </span>
+                    </div>
+                    <div className="h-1.5 bg-bg-elevated rounded-full overflow-hidden">
+                      <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: c.color }} />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Income sources + weekday/weekend */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
