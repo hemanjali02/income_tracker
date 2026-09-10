@@ -441,6 +441,37 @@ makeCrudRoutes('receivables')
 makeCrudRoutes('networthsnapshots')
 makeCrudRoutes('emis')
 
+// ─── Seed defaults for an account missing categories/accounts ───
+// Recovers accounts whose defaults never seeded (or were wiped), so the
+// transaction pickers are never empty. Idempotent: only inserts a resource
+// that currently has none, and always returns the authoritative lists.
+app.post('/api/seed-defaults', requireAuth, async (req, res) => {
+  try {
+    const { DEFAULT_CATEGORIES, DEFAULT_ACCOUNTS } = await import('./db.js')
+    const Category = models.categories
+    const Account = models.accounts
+
+    if (await Category.countDocuments({ userId: req.userId }) === 0) {
+      await Category.insertMany(
+        DEFAULT_CATEGORIES.map(c => ({ ...c, id: `${c.id}-${req.userId}`, userId: req.userId }))
+      )
+    }
+    if (await Account.countDocuments({ userId: req.userId }) === 0) {
+      await Account.insertMany(
+        DEFAULT_ACCOUNTS.map(a => ({ ...a, id: `${a.id}-${req.userId}`, userId: req.userId }))
+      )
+    }
+
+    const [categories, accounts] = await Promise.all([
+      Category.find({ userId: req.userId }).lean(),
+      Account.find({ userId: req.userId }).lean(),
+    ])
+    res.json({ categories: cleanMany(categories), accounts: cleanMany(accounts) })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
 // ─── Budgets ─────────────────────────────────────────────
 app.get('/api/budgets', requireAuth, async (req, res) => {
   try {

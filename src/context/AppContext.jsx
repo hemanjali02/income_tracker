@@ -46,7 +46,23 @@ export function AppProvider({ children }) {
           setCategories(cats.length ? cats : defaultCategories)
           setAccounts(accs.length ? accs : defaultAccounts)
         } else {
-          setTransactions(txs); setCategories(cats); setAccounts(accs)
+          setTransactions(txs)
+          // A logged-in account with no categories/accounts can't add
+          // transactions (the pickers come up empty). Ask the server to seed
+          // its defaults and use the authoritative lists it returns.
+          if (cats.length && accs.length) {
+            setCategories(cats); setAccounts(accs)
+          } else {
+            try {
+              const seeded = await api.seedDefaults()
+              setCategories(cats.length ? cats : (seeded.categories || defaultCategories))
+              setAccounts(accs.length ? accs : (seeded.accounts || defaultAccounts))
+            } catch {
+              // Last-resort local fallback so the form is still usable.
+              setCategories(cats.length ? cats : defaultCategories)
+              setAccounts(accs.length ? accs : defaultAccounts)
+            }
+          }
         }
         setBudgets(buds); setInvestments(invs)
         setRecurring(recs); setGoals(gls); setReceivables(rcvs); setNetWorthSnapshots(nws); setEmis(ems)
@@ -58,7 +74,7 @@ export function AppProvider({ children }) {
   }, [authReady, serverMode, user])
 
   function apiErr() {
-    addToast('Sync failed — data saved locally only', 'error')
+    addToast('Sync failed, data saved locally only', 'error')
   }
 
   // Transactions

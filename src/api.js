@@ -227,6 +227,15 @@ export const api = {
     saveLocal('it_transactions', list.filter(t => !set.has(t.id)))
   },
 
+  // Seed default categories/accounts for a logged-in account that has none.
+  // Server-only: returns the authoritative lists so the pickers are never empty.
+  async seedDefaults() {
+    if (await checkServer() && getToken()) {
+      return apiCall('/seed-defaults', { method: 'POST' })
+    }
+    return { categories: [], accounts: [] }
+  },
+
   // Categories
   getCategories: () => cats.list(),
   addCategory: (c) => cats.create(c),
