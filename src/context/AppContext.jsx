@@ -21,6 +21,7 @@ export function AppProvider({ children }) {
   const [receivables, setReceivables] = useState([])
   const [netWorthSnapshots, setNetWorthSnapshots] = useState([])
   const [emis, setEmis] = useState([])
+  const [trips, setTrips] = useState([])
   const [loading, setLoading] = useState(true)
   const undoTimers = useRef({})
 
@@ -32,14 +33,14 @@ export function AppProvider({ children }) {
         if (serverMode && !user) {
           setTransactions([]); setCategories([]); setAccounts([])
           setBudgets([]); setInvestments([])
-          setRecurring([]); setGoals([]); setReceivables([]); setNetWorthSnapshots([]); setEmis([])
+          setRecurring([]); setGoals([]); setReceivables([]); setNetWorthSnapshots([]); setEmis([]); setTrips([])
           return
         }
-        const [txs, cats, accs, buds, invs, recs, gls, rcvs, nws, ems] = await Promise.all([
+        const [txs, cats, accs, buds, invs, recs, gls, rcvs, nws, ems, trps] = await Promise.all([
           api.getTransactions(), api.getCategories(), api.getAccounts(),
           api.getBudgets(), api.getInvestments(),
           api.getRecurring(), api.getGoals(), api.getReceivables(), api.getNetWorthSnapshots(),
-          api.getEmis(),
+          api.getEmis(), api.getTrips(),
         ])
         if (!serverMode) {
           setTransactions(txs.length ? txs : sampleTransactions)
@@ -65,7 +66,7 @@ export function AppProvider({ children }) {
           }
         }
         setBudgets(buds); setInvestments(invs)
-        setRecurring(recs); setGoals(gls); setReceivables(rcvs); setNetWorthSnapshots(nws); setEmis(ems)
+        setRecurring(recs); setGoals(gls); setReceivables(rcvs); setNetWorthSnapshots(nws); setEmis(ems); setTrips(trps)
       } finally {
         setLoading(false)
       }
@@ -351,6 +352,40 @@ export function AppProvider({ children }) {
     addToast('Investment deleted', 'info')
   }, [addToast])
 
+  // Trips
+  const addTrip = useCallback(async (trip) => {
+    setTrips(prev => [...prev, trip])
+    try { await api.addTrip(trip) } catch { apiErr() }
+    addToast('Trip created')
+  }, [addToast])
+  const updateTrip = useCallback(async (id, updates) => {
+    setTrips(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t))
+    try { await api.updateTrip(id, updates) } catch { apiErr() }
+    addToast('Trip updated')
+  }, [addToast])
+  const deleteTrip = useCallback(async (id) => {
+    // Removing a trip only unlinks its transactions; the transactions stay.
+    setTrips(prev => prev.filter(t => t.id !== id))
+    setTransactions(prev => prev.map(t => t.tripId === id ? { ...t, tripId: null } : t))
+    try {
+      await api.deleteTrip(id)
+      const affected = transactions.filter(t => t.tripId === id)
+      await Promise.all(affected.map(t => api.updateTransaction(t.id, { ...t, tripId: null })))
+    } catch { apiErr() }
+    addToast('Trip deleted', 'info')
+  }, [addToast, transactions])
+
+  // Assign / unassign many transactions to a trip in one action.
+  const assignTransactionsToTrip = useCallback(async (ids, tripId) => {
+    const idSet = new Set(ids)
+    const affected = transactions.filter(t => idSet.has(t.id))
+    setTransactions(prev => prev.map(t => idSet.has(t.id) ? { ...t, tripId } : t))
+    try {
+      await Promise.all(affected.map(t => api.updateTransaction(t.id, { ...t, tripId })))
+    } catch { apiErr() }
+    addToast(tripId ? `Added ${affected.length} to trip` : `Removed ${affected.length} from trip`)
+  }, [addToast, transactions])
+
   if (loading || !authReady) {
     return <AppSkeleton />
   }
@@ -358,8 +393,9 @@ export function AppProvider({ children }) {
   return (
     <AppContext.Provider value={{
       transactions, categories, accounts, budgets, investments,
-      recurring, goals, receivables, netWorthSnapshots, emis,
+      recurring, goals, receivables, netWorthSnapshots, emis, trips,
       addTransaction, updateTransaction, deleteTransaction, bulkDeleteTransactions, addTransfer, updateTransfer,
+      addTrip, updateTrip, deleteTrip, assignTransactionsToTrip,
       addCategory, updateCategory, deleteCategory,
       addAccount, updateAccount, deleteAccount,
       saveBudget, deleteBudget,

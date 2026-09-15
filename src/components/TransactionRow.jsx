@@ -1,7 +1,7 @@
 import { Pencil, Trash2, FileText, Copy, StickyNote, ArrowLeftRight } from 'lucide-react'
 import { formatCurrency, formatDate } from '../utils/helpers'
 
-export default function TransactionRow({ tx, category, account, pairedAccount, onEdit, onDelete, onDuplicate, selected, onToggleSelect }) {
+export default function TransactionRow({ tx, category, account, pairedAccount, trip, onEdit, onDelete, onDuplicate, selected, onToggleSelect }) {
   const isTransfer = tx.type === 'transfer'
   const isOut = tx.transferDirection === 'out'
 
@@ -33,6 +33,12 @@ export default function TransactionRow({ tx, category, account, pairedAccount, o
           {tx.notes && (
             <span title={tx.notes} className="text-gray-600 hover:text-gray-400 cursor-help">
               <StickyNote size={12} />
+            </span>
+          )}
+          {trip && (
+            <span title={`Trip: ${trip.name}`} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium flex-shrink-0"
+              style={{ backgroundColor: (trip.color || '#8b5cf6') + '1f', color: trip.color || '#a78bfa', border: `1px solid ${(trip.color || '#8b5cf6')}33` }}>
+              {trip.emoji || '✈️'} <span className="truncate max-w-[90px]">{trip.name}</span>
             </span>
           )}
         </div>

@@ -120,6 +120,7 @@ const gls  = resource('goals', 'it_goals')
 const rcvs = resource('receivables', 'it_receivables')
 const nws  = resource('networthsnapshots', 'it_networthsnapshots')
 const emis = resource('emis', 'it_emis')
+const trps = resource('trips', 'it_trips')
 
 export const api = {
   async isServerMode() { return checkServer() },
@@ -296,4 +297,10 @@ export const api = {
   addEmi: (e) => emis.create(e),
   updateEmi: (id, data) => emis.update(id, data),
   deleteEmi: (id) => emis.remove(id),
+
+  // Trips
+  getTrips: () => trps.list(),
+  addTrip: (t) => trps.create(t),
+  updateTrip: (id, data) => trps.update(id, data),
+  deleteTrip: (id) => trps.remove(id),
 }

@@ -14,6 +14,9 @@ export const FEATURE = {
   splitExpenses:     'splitExpenses',
   pdfImport:         'pdfImport',
   pdfReports:        'pdfReports',
+  tripCompare:       'tripCompare',
+  tripReport:        'tripReport',
+  tripSettle:        'tripSettle',
 }
 
 // Everything above is Pro. Free tier gets none of these gated features.
@@ -37,6 +40,9 @@ export const FEATURE_COPY = {
   pdfReports:   { title: 'PDF Reports', blurb: 'Generate a clean monthly report you can save or share.' },
   splitExpenses:{ title: 'Split Expenses', blurb: 'Split a bill and auto-create receivables for everyone who owes you.' },
   unlimitedAccounts: { title: 'Unlimited Accounts', blurb: 'Add as many banks, wallets and cards as you like.' },
+  tripCompare:  { title: 'Compare Trips', blurb: 'Put your trips side by side and see which cost more, per day and overall.' },
+  tripReport:   { title: 'Trip Report Card', blurb: 'A polished end-of-trip summary with your totals, top category and biggest day.' },
+  tripSettle:   { title: 'Group Settle-up', blurb: 'Split trip costs with friends and see exactly who owes whom.' },
 }
 
 // Display prices fallback (server config overrides these at runtime).
@@ -58,4 +64,6 @@ export const PLAN_MATRIX = [
   { label: 'Split expenses', free: false, pro: true },
   { label: 'Bank PDF import', free: false, pro: true },
   { label: 'PDF monthly reports', free: false, pro: true },
+  { label: 'Trips & spending insights', free: true, pro: true },
+  { label: 'Compare trips, report cards & group settle-up', free: false, pro: true },
 ]

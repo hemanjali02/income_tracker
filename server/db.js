@@ -53,6 +53,7 @@ const transactionSchema = new mongoose.Schema({
   accountId:         String,
   date:              String,
   notes:             String,
+  tripId:            String, // optional — groups this transaction under a trip
   // Transfer-specific fields
   transferId:        String,
   transferDirection: String, // 'in' | 'out'
@@ -188,6 +189,25 @@ const netWorthSnapshotSchema = new mongoose.Schema({
 netWorthSnapshotSchema.index({ userId: 1, date: 1 }, { unique: true })
 export const NetWorthSnapshot = mongoose.model('NetWorthSnapshot', netWorthSnapshotSchema)
 
+// Trips — group transactions taken during a trip for per-trip insights
+const tripSchema = new mongoose.Schema({
+  id:          { type: String, required: true, unique: true },
+  userId:      { type: String, required: true, index: true },
+  name:        String,
+  destination: String,
+  emoji:       String,
+  color:       String,
+  startDate:   String,   // YYYY-MM-DD
+  endDate:     String,   // YYYY-MM-DD
+  budget:      Number,   // optional spending target
+  notes:       String,
+  // Group settle-up (Pro): companions and the shared-expense ledger
+  members:       { type: Array, default: [] },  // [{ id, name }]
+  splitExpenses: { type: Array, default: [] },  // [{ id, label, amount, paidBy, sharedBy: [id], date }]
+  createdAt:   { type: String, default: () => new Date().toISOString() },
+})
+export const Trip = mongoose.model('Trip', tripSchema)
+
 // ─── Model map (for generic CRUD helper) ────────────────
 export const models = {
   transactions: Transaction,
@@ -199,6 +219,7 @@ export const models = {
   receivables:  Receivable,
   networthsnapshots: NetWorthSnapshot,
   emis:         Emi,
+  trips:        Trip,
 }
 
 // ─── Default data seeding ───────────────────────────────

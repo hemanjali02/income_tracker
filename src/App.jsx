@@ -26,6 +26,7 @@ import Goals from './components/Goals'
 import Receivables from './components/Receivables'
 import Analysis from './components/Analysis'
 import Balances from './components/Balances'
+import Trips from './components/Trips'
 import AddTransactionModal from './components/AddTransactionModal'
 import Login from './components/Login'
 import Toasts from './components/Toast'
@@ -72,7 +73,7 @@ function AppShell() {
       dashboard: 'Dashboard', balances: 'Balances', analysis: 'Analysis',
       transactions: 'Transactions', recurring: 'Recurring', receivables: 'Receivables',
       investments: 'Investments', budgets: 'Budgets', goals: 'Goals',
-      categories: 'Categories', accounts: 'Accounts',
+      categories: 'Categories', accounts: 'Accounts', trips: 'Trips',
     }
     document.title = `${labels[view] || view} | Income Tracker`
   }, [view])
@@ -141,6 +142,7 @@ function AppShell() {
               {view === 'balances' && <Balances />}
               {view === 'analysis' && (can('analysis') ? <Analysis /> : <LockedView feature="analysis" />)}
               {view === 'transactions' && <Transactions onAdd={() => openAdd()} />}
+              {view === 'trips' && <Trips />}
               {view === 'recurring' && (can('recurring') ? <Recurring /> : <LockedView feature="recurring" />)}
               {view === 'receivables' && (can('receivables') ? <Receivables /> : <LockedView feature="receivables" />)}
               {view === 'investments' && (can('investments') ? <Investments /> : <LockedView feature="investments" />)}

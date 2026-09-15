@@ -16,8 +16,8 @@ function fieldCls(errorField, thisField) {
   return inputCls + (errorField === thisField ? ' !border-rose-500/60' : '')
 }
 
-export default function AddTransactionModal({ onClose, editTx, defaultType }) {
-  const { categories, accounts, transactions, addTransaction, updateTransaction, addTransfer, updateTransfer, addReceivable } = useApp()
+export default function AddTransactionModal({ onClose, editTx, defaultType, defaultTripId }) {
+  const { categories, accounts, transactions, trips, addTransaction, updateTransaction, addTransfer, updateTransfer, addReceivable } = useApp()
   const { can, promptUpgrade } = useBilling()
 
   // Local visibility for exit animation
@@ -35,6 +35,7 @@ export default function AddTransactionModal({ onClose, editTx, defaultType }) {
   const [categoryId, setCategoryId] = useState(editTx?.categoryId || '')
   const [accountId, setAccountId] = useState(editTx?.accountId || '')
   const [date, setDate] = useState(editTx?.date || new Date().toISOString().slice(0, 10))
+  const [tripId, setTripId] = useState(editTx?.tripId || defaultTripId || '')
   const [notes, setNotes] = useState(editTx?.notes || '')
   const [error, setError] = useState('')
   const [errorField, setErrorField] = useState('')
@@ -187,6 +188,7 @@ export default function AddTransactionModal({ onClose, editTx, defaultType }) {
       id: txId,
       type, name: name.trim(), amount: Number(amount),
       categoryId, accountId, date, notes: finalNotes,
+      tripId: tripId || null,
     }
 
     if (editTx) updateTransaction(editTx.id, tx)
@@ -460,9 +462,20 @@ export default function AddTransactionModal({ onClose, editTx, defaultType }) {
                 </div>
               </div>
 
-              <div>
-                <label className={labelCls}>Date</label>
-                <input className={fieldCls(errorField, 'date')} type="date" value={date} onChange={e => setDate(e.target.value)} />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>Date</label>
+                  <input className={fieldCls(errorField, 'date')} type="date" value={date} onChange={e => setDate(e.target.value)} />
+                </div>
+                {trips.length > 0 && (
+                  <div>
+                    <label className={labelCls}>Trip <span className="text-gray-600">(optional)</span></label>
+                    <select className={inputCls} value={tripId} onChange={e => setTripId(e.target.value)}>
+                      <option value="">No trip</option>
+                      {trips.map(t => <option key={t.id} value={t.id}>{t.emoji || '✈️'} {t.name}</option>)}
+                    </select>
+                  </div>
+                )}
               </div>
 
               <div>

@@ -373,3 +373,124 @@ export function parseCSV(text) {
   }
   return rows
 }
+
+// ─── Trips ───────────────────────────────────────────────
+
+// planned (before start), active (within range or no dates), completed (after end)
+export function tripStatus(trip, today = new Date()) {
+  const t = today.toISOString().slice(0, 10)
+  if (trip.startDate && t < trip.startDate) return 'planned'
+  if (trip.endDate && t > trip.endDate) return 'completed'
+  return 'active'
+}
+
+// How many transactions fall inside a trip's date window but aren't tagged to it
+// yet — powers the "tag N transactions" one-tap action on the trip page.
+export function untaggedInTripWindow(trip, transactions) {
+  if (!trip.startDate || !trip.endDate) return []
+  return transactions.filter(t =>
+    t.type !== 'transfer' &&
+    !t.tripId &&
+    t.date >= trip.startDate &&
+    t.date <= trip.endDate
+  )
+}
+
+// Everything the Trips detail view needs, derived from tagged transactions.
+export function buildTripInsights(trip, allTransactions) {
+  const tagged = allTransactions.filter(t => t.tripId === trip.id)
+  const expenses = tagged.filter(t => t.type === 'expense')
+  const incomes = tagged.filter(t => t.type === 'income')
+
+  const totalSpent = expenses.reduce((s, t) => s + t.amount, 0)
+  const totalIncome = incomes.reduce((s, t) => s + t.amount, 0)
+  const count = tagged.length
+
+  const status = tripStatus(trip)
+  const start = trip.startDate ? new Date(trip.startDate + 'T00:00:00') : null
+  const end = trip.endDate ? new Date(trip.endDate + 'T00:00:00') : null
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+
+  const DAY = 86400000
+  let totalDays = 1
+  if (start && end) totalDays = Math.max(1, Math.round((end - start) / DAY) + 1)
+
+  let elapsedDays = totalDays
+  if (start) {
+    if (status === 'planned') elapsedDays = 0
+    else if (status === 'active') elapsedDays = Math.max(1, Math.min(totalDays, Math.round((today - start) / DAY) + 1))
+    else elapsedDays = totalDays
+  }
+
+  const perDay = elapsedDays > 0 ? totalSpent / elapsedDays : totalSpent
+  // Projected end-of-trip total for a trip still in progress
+  const projectedTotal = status === 'active' && elapsedDays > 0 && totalDays > elapsedDays
+    ? perDay * totalDays
+    : totalSpent
+
+  const byCat = {}
+  for (const t of expenses) byCat[t.categoryId] = (byCat[t.categoryId] || 0) + t.amount
+
+  const byDayMap = {}
+  for (const t of expenses) byDayMap[t.date] = (byDayMap[t.date] || 0) + t.amount
+  const byDay = Object.entries(byDayMap)
+    .map(([date, amount]) => ({ date, amount }))
+    .sort((a, b) => a.date.localeCompare(b.date))
+  const biggestDay = byDay.reduce((best, d) => (!best || d.amount > best.amount ? d : best), null)
+
+  const budget = trip.budget || 0
+  const remaining = budget ? budget - totalSpent : null
+  const pct = budget ? (totalSpent / budget) * 100 : null
+  const projectedOver = budget && projectedTotal > budget
+
+  return {
+    totalSpent, totalIncome, netCost: totalSpent - totalIncome, count,
+    status, totalDays, elapsedDays, perDay, projectedTotal,
+    byCat, byDay, biggestDay,
+    budget, remaining, pct, projectedOver,
+    expenses,
+  }
+}
+
+// Group settle-up: turn a shared-expense ledger into per-person balances and a
+// minimal set of "who pays whom" transfers.
+export function computeSettlement(members = [], splitExpenses = []) {
+  const paid = {}, share = {}
+  for (const m of members) { paid[m.id] = 0; share[m.id] = 0 }
+
+  for (const e of splitExpenses) {
+    const amt = Number(e.amount) || 0
+    if (amt <= 0) continue
+    if (e.paidBy != null && paid[e.paidBy] != null) paid[e.paidBy] += amt
+    const sharers = (e.sharedBy && e.sharedBy.length ? e.sharedBy : members.map(m => m.id))
+      .filter(id => share[id] != null)
+    if (sharers.length) {
+      const per = amt / sharers.length
+      for (const id of sharers) share[id] += per
+    }
+  }
+
+  const balances = members.map(m => ({
+    id: m.id, name: m.name,
+    paid: paid[m.id] || 0,
+    share: share[m.id] || 0,
+    net: (paid[m.id] || 0) - (share[m.id] || 0), // + is owed money, − owes money
+  }))
+
+  // Greedy minimal transfers: biggest debtor pays biggest creditor.
+  const creditors = balances.filter(b => b.net > 0.01).map(b => ({ ...b })).sort((a, b) => b.net - a.net)
+  const debtors = balances.filter(b => b.net < -0.01).map(b => ({ ...b, net: -b.net })).sort((a, b) => b.net - a.net)
+  const transfers = []
+  let ci = 0, di = 0
+  while (ci < creditors.length && di < debtors.length) {
+    const c = creditors[ci], d = debtors[di]
+    const amt = Math.min(c.net, d.net)
+    transfers.push({ fromId: d.id, fromName: d.name, toId: c.id, toName: c.name, amount: Math.round(amt * 100) / 100 })
+    c.net -= amt; d.net -= amt
+    if (c.net < 0.01) ci++
+    if (d.net < 0.01) di++
+  }
+
+  const totalShared = splitExpenses.reduce((s, e) => s + (Number(e.amount) || 0), 0)
+  return { balances, transfers, totalShared }
+}

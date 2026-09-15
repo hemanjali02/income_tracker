@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { LayoutDashboard, ArrowLeftRight, Tag, Wallet, TrendingUp, Target, Menu, X, Database, HardDrive, LogOut, Briefcase, KeyRound, Eye, EyeOff, Repeat, Flag, HandCoins, LineChart, Coins, User, Trash2, AlertTriangle, Sparkles } from 'lucide-react'
+import { LayoutDashboard, ArrowLeftRight, Tag, Wallet, TrendingUp, Target, Menu, X, Database, HardDrive, LogOut, Briefcase, KeyRound, Eye, EyeOff, Repeat, Flag, HandCoins, LineChart, Coins, User, Trash2, AlertTriangle, Sparkles, Plane } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { GoogleLogin } from '@react-oauth/google'
 import { navSlide } from '../utils/motion'
@@ -24,6 +24,7 @@ const navSections = [
       { id: 'transactions', label: 'Transactions', icon: ArrowLeftRight },
       { id: 'recurring',    label: 'Recurring',    icon: Repeat },
       { id: 'receivables',  label: 'Receivables',  icon: HandCoins },
+      { id: 'trips',        label: 'Trips',        icon: Plane },
     ],
   },
   {

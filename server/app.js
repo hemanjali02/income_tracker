@@ -232,7 +232,8 @@ async function wipeUserData(userId) {
   const collections = [
     models.transactions, models.categories, models.accounts,
     models.investments, models.recurring, models.goals,
-    models.receivables, models.networthsnapshots, Budget,
+    models.receivables, models.networthsnapshots, models.emis,
+    models.trips, Budget,
   ]
   await Promise.all([
     ...collections.map(M => M.deleteMany({ userId })),
@@ -440,6 +441,7 @@ makeCrudRoutes('goals')
 makeCrudRoutes('receivables')
 makeCrudRoutes('networthsnapshots')
 makeCrudRoutes('emis')
+makeCrudRoutes('trips')
 
 // ─── Seed defaults for an account missing categories/accounts ───
 // Recovers accounts whose defaults never seeded (or were wiped), so the

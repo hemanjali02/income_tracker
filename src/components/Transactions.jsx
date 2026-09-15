@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, SlidersHorizontal, ChevronUp, ChevronDown, X, Download, Upload, Trash2, Calendar, Pencil, Copy, FileText, List, CalendarDays } from 'lucide-react'
+import { Search, SlidersHorizontal, ChevronUp, ChevronDown, X, Download, Upload, Trash2, Calendar, Pencil, Copy, FileText, List, CalendarDays, Plane } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { useToast } from '../context/ToastContext'
 import { exportToCSV, parseCSV, generateId, formatCurrency, formatDate } from '../utils/helpers'
@@ -39,14 +39,16 @@ function SortIndicator({ active, dir }) {
 }
 
 export default function Transactions({ onAdd }) {
-  const { transactions, categories, accounts, deleteTransaction, addTransaction, bulkDeleteTransactions } = useApp()
+  const { transactions, categories, accounts, trips, deleteTransaction, addTransaction, bulkDeleteTransactions, assignTransactionsToTrip } = useApp()
   const { addToast } = useToast()
   const { can, promptUpgrade } = useBilling()
   const [search, setSearch] = useState('')
   const [filterType, setFilterType] = useState('all')
   const [filterCat, setFilterCat] = useState('')
   const [filterAcc, setFilterAcc] = useState('')
+  const [filterTrip, setFilterTrip] = useState('')
   const [filterMonth, setFilterMonth] = useState('')
+  const [showTripMenu, setShowTripMenu] = useState(false)
   const [dateRange, setDateRange] = useState(null) // { from, to, label }
   const [sortKey, setSortKey] = useState('date')
   const [sortDir, setSortDir] = useState('desc')
@@ -76,6 +78,7 @@ export default function Transactions({ onAdd }) {
     if (filterType !== 'all') list = list.filter(t => t.type === filterType)
     if (filterCat) list = list.filter(t => t.categoryId === filterCat)
     if (filterAcc) list = list.filter(t => t.accountId === filterAcc)
+    if (filterTrip) list = list.filter(t => filterTrip === '__none' ? !t.tripId : t.tripId === filterTrip)
     if (filterMonth) list = list.filter(t => t.date.startsWith(filterMonth))
     if (dateRange) list = list.filter(t => t.date >= dateRange.from && t.date <= dateRange.to)
 
@@ -87,7 +90,7 @@ export default function Transactions({ onAdd }) {
       return 0
     })
     return list
-  }, [transactions, search, filterType, filterCat, filterAcc, filterMonth, dateRange, sortKey, sortDir])
+  }, [transactions, search, filterType, filterCat, filterAcc, filterTrip, filterMonth, dateRange, sortKey, sortDir])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
@@ -126,6 +129,12 @@ export default function Transactions({ onAdd }) {
 
   function clearSelection() { setSelected(new Set()) }
   function handleBulkDelete() { setConfirmBulk(true) }
+
+  function assignSelectedToTrip(tripId) {
+    assignTransactionsToTrip([...selected], tripId)
+    setSelected(new Set())
+    setShowTripMenu(false)
+  }
 
   function confirmDel() {
     if (confirmDelete) deleteTransaction(confirmDelete)
@@ -203,7 +212,7 @@ export default function Transactions({ onAdd }) {
 
   const selectCls = `bg-bg-input border border-line rounded-lg px-3 py-2 text-sm text-gray-300
     focus:outline-none focus:border-violet-500 transition-colors`
-  const hasFilters = filterType !== 'all' || filterCat || filterAcc || filterMonth || dateRange
+  const hasFilters = filterType !== 'all' || filterCat || filterAcc || filterTrip || filterMonth || dateRange
 
   return (
     <div className="space-y-4 animate-in pb-20">
@@ -300,8 +309,15 @@ export default function Transactions({ onAdd }) {
               <option value="">All Accounts</option>
               {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
+            {trips.length > 0 && (
+              <select className={selectCls} value={filterTrip} onChange={e => { setFilterTrip(e.target.value); setPage(1) }}>
+                <option value="">All Trips</option>
+                <option value="__none">No trip</option>
+                {trips.map(t => <option key={t.id} value={t.id}>{t.emoji || '✈️'} {t.name}</option>)}
+              </select>
+            )}
             {hasFilters && (
-              <button onClick={() => { setFilterType('all'); setFilterCat(''); setFilterAcc(''); setFilterMonth(''); setDateRange(null); setPage(1) }}
+              <button onClick={() => { setFilterType('all'); setFilterCat(''); setFilterAcc(''); setFilterTrip(''); setFilterMonth(''); setDateRange(null); setPage(1) }}
                 className="flex items-center gap-1 px-3 py-2 text-sm text-rose-400 hover:text-rose-300 transition-colors">
                 <X size={14} /> Clear
               </button>
@@ -401,6 +417,7 @@ export default function Transactions({ onAdd }) {
                     key={tx.id} tx={tx}
                     category={categories.find(c => c.id === tx.categoryId)}
                     account={accounts.find(a => a.id === tx.accountId)}
+                    trip={tx.tripId ? trips.find(t => t.id === tx.tripId) : null}
                     pairedAccount={tx.type === 'transfer' ? accounts.find(a => a.id === pairedAccountId) : null}
                     onEdit={setEditTx} onDelete={(id) => setConfirmDelete(id)}
                     onDuplicate={handleDuplicate}
@@ -489,6 +506,15 @@ export default function Transactions({ onAdd }) {
                             </>
                           )}
                           <span className="text-[11px] text-gray-500">{formatDate(tx.date)}</span>
+                          {tx.tripId && (() => {
+                            const trip = trips.find(t => t.id === tx.tripId)
+                            return trip ? (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium"
+                                style={{ backgroundColor: (trip.color || '#8b5cf6') + '1f', color: trip.color || '#a78bfa', border: `1px solid ${(trip.color || '#8b5cf6')}33` }}>
+                                {trip.emoji || '✈️'} {trip.name}
+                              </span>
+                            ) : null
+                          })()}
                         </div>
                       </div>
                     </div>
@@ -555,6 +581,29 @@ export default function Transactions({ onAdd }) {
               Clear
             </button>
             <div className="w-px h-5 bg-line" />
+            {trips.length > 0 && (
+              <div className="relative">
+                <motion.button whileTap={{ scale: 0.95 }} onClick={() => setShowTripMenu(v => !v)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-500/15 border border-violet-500/30 text-violet-300 hover:bg-violet-500/25 text-xs font-medium transition-colors">
+                  <Plane size={13} /> Add to Trip
+                </motion.button>
+                {showTripMenu && (
+                  <div className="absolute bottom-full mb-2 right-0 w-52 max-h-60 overflow-y-auto glass border border-line rounded-xl shadow-2xl py-1 z-40">
+                    {trips.map(t => (
+                      <button key={t.id} onClick={() => assignSelectedToTrip(t.id)}
+                        className="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-violet-500/10 flex items-center gap-2">
+                        <span>{t.emoji || '✈️'}</span> <span className="truncate">{t.name}</span>
+                      </button>
+                    ))}
+                    <div className="border-t border-line-subtle my-1" />
+                    <button onClick={() => assignSelectedToTrip(null)}
+                      className="w-full text-left px-3 py-2 text-xs text-gray-500 hover:text-rose-400 hover:bg-rose-500/5">
+                      Remove from trip
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
             <motion.button whileTap={{ scale: 0.95 }} onClick={handleBulkDelete}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-500/15 border border-rose-500/30 text-rose-300 hover:bg-rose-500/25 text-xs font-medium transition-colors">
               <Trash2 size={13} /> Delete
