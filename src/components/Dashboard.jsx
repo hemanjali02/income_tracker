@@ -62,6 +62,37 @@ function ChartTooltip({ active, payload, label }) {
   )
 }
 
+// One series of daily flow (money out or money in) on its own auto-scaled axis,
+// so a big payday income and small daily expenses each stay readable.
+function DailyFlowChart({ data, dataKey, label, color, gradId, total }) {
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-xs font-medium flex items-center gap-1.5" style={{ color }}>
+          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} /> {label}
+        </span>
+        <span className="text-xs text-gray-500">{formatCompact(total)}</span>
+      </div>
+      <ResponsiveContainer width="100%" height={92}>
+        <AreaChart data={data} margin={{ top: 4, right: 6, left: 0, bottom: 0 }}>
+          <defs>
+            <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor={color} stopOpacity={0.3} />
+              <stop offset="95%" stopColor={color} stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="#1c1c2e" vertical={false} />
+          <XAxis dataKey="day" tick={{ fill: '#6b7280', fontSize: 10 }} axisLine={false} tickLine={false} />
+          <YAxis tick={{ fill: '#6b7280', fontSize: 10 }} axisLine={false} tickLine={false}
+            tickFormatter={v => formatCompact(v)} width={42} />
+          <Tooltip content={<ChartTooltip />} />
+          <Area type="monotone" dataKey={dataKey} name={label} stroke={color} strokeWidth={2} fill={`url(#${gradId})`} />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
+
 function InsightCard({ icon, title, value, sub, highlight }) {
   return (
     <div className={`flex items-center gap-3 p-3 rounded-lg border ${highlight ? 'bg-violet-500/5 border-violet-500/20' : 'bg-bg-elevated border-line-subtle'}`}>
@@ -349,31 +380,19 @@ export default function Dashboard() {
       {/* Charts row 2 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 bg-bg-card border border-line-subtle rounded-xl p-5">
-          <h3 className="text-sm font-semibold text-white mb-4">Daily Spending</h3>
+          <h3 className="text-sm font-semibold text-white mb-4">Daily Cash Flow</h3>
           {dailyData.length === 0 ? (
             <p className="text-gray-500 text-sm text-center py-10">No data this month</p>
           ) : (
-            <ResponsiveContainer width="100%" height={180}>
-              <AreaChart data={dailyData}>
-                <defs>
-                  <linearGradient id="expGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#f97316" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#f97316" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="incGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1c1c2e" vertical={false} />
-                <XAxis dataKey="day" tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={false} tickLine={false}
-                  tickFormatter={v => formatCompact(v)} width={45} />
-                <Tooltip content={<ChartTooltip />} />
-                <Area type="monotone" dataKey="expense" name="Expense" stroke="#f97316" strokeWidth={2} fill="url(#expGrad)" />
-                <Area type="monotone" dataKey="income" name="Income" stroke="#10b981" strokeWidth={2} fill="url(#incGrad)" />
-              </AreaChart>
-            </ResponsiveContainer>
+            // Money-out and money-in are drawn as separate mini charts so a single
+            // big payday income no longer flattens the far smaller daily expenses.
+            // Each has its own auto-scaled Y axis; the shared X (day) keeps them aligned.
+            <div className="space-y-3">
+              <DailyFlowChart data={dailyData} dataKey="expense" label="Money out"
+                color="#f97316" gradId="dailyOutGrad" total={dailyData.reduce((s, d) => s + d.expense, 0)} />
+              <DailyFlowChart data={dailyData} dataKey="income" label="Money in"
+                color="#10b981" gradId="dailyInGrad" total={dailyData.reduce((s, d) => s + d.income, 0)} />
+            </div>
           )}
         </div>
 
